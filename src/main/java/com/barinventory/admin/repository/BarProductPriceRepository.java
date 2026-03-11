@@ -16,4 +16,6 @@ public interface BarProductPriceRepository extends JpaRepository<BarProductPrice
     Optional<BarProductPrice> findByBarBarIdAndProductProductId(Long barId, Long productId);
     
     List<BarProductPrice> findByBarBarIdAndActiveTrue(Long barId);
+    
+    
 }

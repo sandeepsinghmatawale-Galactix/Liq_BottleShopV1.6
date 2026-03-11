@@ -22,6 +22,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
 
         log.info("Attempting to load user by email: {}", email);
+        
 
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> {
@@ -35,6 +36,12 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         }
 
         log.info("User loaded successfully: {} with role: {}", email, user.getRole());
+        
+        log.info("User active: {}, role: {}, barId: {}, passwordHash: {}", 
+        	    user.getActive(), 
+        	    user.getRole(), 
+        	    user.getBarId(),
+        	    user.getPassword().substring(0, 10)); // just first 10 chars
 
         // ✅ RETURN YOUR ENTITY DIRECTLY
         return user;

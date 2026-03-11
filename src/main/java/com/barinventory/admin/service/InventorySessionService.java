@@ -423,19 +423,19 @@ public class InventorySessionService {
         return sessionRepository.findSessionsByBarAndDateRange(barId, startDate, endDate);
     }
     
- // 1. Build productId → quantityFromStockroom map for pre-filling received
- // Returns map of "productId_wellName" → allocated quantity
-   
-    
-    public Map<Long, BigDecimal> getDistributionMapForSession(Long sessionId) {
-        List<DistributionRecord> distributions =
-                distributionRepository.findBySessionSessionId(sessionId);
 
-        return distributions.stream()
+    
+ // ✅ Returns "productId_wellName" → receivedFromDistribution
+    public Map<String, BigDecimal> getDistributionMapForSession(Long sessionId) {
+        List<WellInventory> wells = wellRepository.findBySessionSessionId(sessionId);
+
+        return wells.stream()
+                .filter(w -> w.getReceivedFromDistribution()
+                              .compareTo(BigDecimal.ZERO) > 0)
                 .collect(Collectors.toMap(
-                        d -> d.getProduct().getProductId(),
-                        DistributionRecord::getQuantityFromStockroom,
-                        BigDecimal::add
+                        w -> w.getProduct().getProductId() + "_" + w.getWellName(),
+                        WellInventory::getReceivedFromDistribution,
+                        BigDecimal::add  // sum if duplicate key
                 ));
     }
 

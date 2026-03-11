@@ -1,310 +1,498 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
-    <title>Create Bill</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
 
-    <!-- Bootstrap -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<meta charset="UTF-8">
+<title>Create Bill</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
-    <style>
-        body { background-color: #f8f9fa; }
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 
-        .main-card {
-            border-radius: 18px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
-            border: none;
-        }
+<style>
 
-        .header-title { font-weight: 700; color: #b91c1c; }
+body{background:#f5f6fa;}
 
-        .btn-add { background-color: #16a34a; color: white; }
-        .btn-add:hover { background-color: #15803d; }
+.card-main{
+border-radius:14px;
+box-shadow:0 10px 25px rgba(0,0,0,0.08);
+}
 
-        .btn-danger-custom { background-color: #dc2626; color: white; }
+.search-dropdown{
+position:absolute;
+background:white;
+border:1px solid #ddd;
+border-radius:6px;
+width:100%;
+max-height:200px;
+overflow-y:auto;
+z-index:1000;
+}
 
-        .qty-btn { width: 28px; height: 28px; padding: 0; }
+.search-item{
+padding:8px 12px;
+cursor:pointer;
+}
 
-        .total-box { font-size: 1.6rem; font-weight: bold; }
-        .grand-total { color: #16a34a; }
+.search-item:hover{
+background:#f1f5f9;
+}
 
-        .search-dropdown {
-            max-height: 200px;
-            overflow-y: auto;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            background: white;
-            position: absolute;
-            width: 100%;
-            z-index: 1000;
-        }
+.total-box{
+font-size:22px;
+font-weight:bold;
+}
 
-        .search-item { padding: 8px 12px; cursor: pointer; }
-        .search-item:hover { background-color: #f3f4f6; }
-    </style>
+.good{
+color:green;
+font-weight:600;
+}
+
+.bad{
+color:red;
+font-weight:600;
+}
+
+.qty-box{
+display:flex;
+align-items:center;
+justify-content:center;
+}
+
+.qty-box button{
+width:28px;
+height:28px;
+padding:0;
+}
+
+</style>
+
 </head>
+
 <body>
 
-<div class="container py-4">
-    <div class="card main-card p-4">
+<div class="container mt-4">
 
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h3 class="header-title">🍺 Create New Bill</h3>
-            <a th:href="@{/billing/bills}" class="btn btn-outline-secondary btn-sm">My Bills</a>
-        </div>
+<div class="card card-main p-4">
 
-        <hr>
+<h3 class="text-danger mb-3">Create Bill</h3>
 
-        <form th:action="@{/billing/bills/new}"
-              th:object="${billRequest}"
-              method="post">
+<form th:action="@{/billing/bills/new}" th:object="${billRequest}" method="post">
 
-            <div class="row mb-3 position-relative">
+<div class="row position-relative">
 
-                <!-- Brand Search -->
-                <div class="col-md-6 col-12 mb-2">
-                    <label class="form-label fw-bold">Search Brand</label>
-                    <input type="text"
-                           id="brandSearch"
-                           class="form-control"
-                           placeholder="Type brand name...">
-                    <div id="searchResults" class="search-dropdown d-none"></div>
-                </div>
+<div class="col-md-5">
 
-                <!-- Size Dropdown -->
-                <div class="col-md-2 col-6 mb-2">
-                    <label class="form-label">Size</label>
-                    <select id="sizeSelect" class="form-select">
-                        <option value="">Select Size</option>
-                    </select>
-                </div>
+<label class="form-label fw-bold">Search Brand</label>
 
-                <!-- Quantity Input -->
-                <div class="col-md-2 col-6 mb-2">
-                    <label class="form-label">Qty</label>
-                    <input type="number" id="quantity" min="1"
-                           class="form-control" value="1">
-                </div>
+<input
+type="text"
+id="brandSearch"
+class="form-control"
+placeholder="Type brand name">
 
-                <!-- Add Item Button -->
-                <div class="col-md-2 col-12 d-flex align-items-end">
-                    <button type="button"
-                            class="btn btn-add w-100"
-                            onclick="addItem()">
-                        Add Item
-                    </button>
-                </div>
-            </div>
+<div id="searchResults" class="search-dropdown d-none"></div>
 
-            <!-- Bill Table -->
-            <div class="table-responsive mt-3">
-                <table class="table table-bordered align-middle">
-                    <thead class="table-light">
-                    <tr>
-                        <th>Brand</th>
-                        <th>Size</th>
-                        <th>Unit Price</th>
-                        <th class="text-center">Qty</th>
-                        <th>Total</th>
-                        <th></th>
-                    </tr>
-                    </thead>
-                    <tbody id="billTableBody"></tbody>
-                </table>
-            </div>
+</div>
 
-            <!-- Grand Total -->
-            <div class="d-flex justify-content-between total-box mt-3">
-                <span>Grand Total</span>
-                <span class="grand-total">
-                    ₹ <span id="grandTotal">0.00</span>
-                </span>
-            </div>
+<div class="col-md-3">
 
-            <div id="hiddenItems"></div>
+<label class="form-label">Size</label>
 
-            <button type="submit"
-                    id="saveBtn"
-                    class="btn btn-success w-100 mt-4"
-                    disabled>
-                Save Bill
-            </button>
-        </form>
-    </div>
+<select id="sizeSelect" class="form-select">
+<option value="">Select Size</option>
+</select>
+
+</div>
+
+<div class="col-md-2">
+
+<label class="form-label">Quantity</label>
+
+<input
+type="number"
+id="qtyInput"
+class="form-control"
+value="1"
+min="1">
+
+</div>
+
+<div class="col-md-2 d-flex align-items-end">
+
+<button
+type="button"
+class="btn btn-success w-100"
+onclick="addItem()">
+
+Add Item
+
+</button>
+
+</div>
+
+</div>
+
+<hr>
+
+<div class="table-responsive">
+
+<table class="table table-bordered">
+
+<thead class="table-light">
+<tr>
+<th>Brand</th>
+<th>Size</th>
+<th>Price</th>
+<th>Qty</th>
+<th>Total</th>
+<th>Remove</th>
+</tr>
+</thead>
+
+<tbody id="billTableBody"></tbody>
+
+</table>
+
+</div>
+
+<div class="d-flex justify-content-between total-box">
+<span>Grand Total</span>
+<span>₹ <span id="grandTotal">0.00</span></span>
+</div>
+
+<hr>
+
+<div class="row">
+
+<div class="col-md-4">
+<label class="form-label">Customer Challan</label>
+
+<input
+type="number"
+id="challanAmount"
+class="form-control"
+value="0"
+oninput="calculateChallan()">
+</div>
+
+<div class="col-md-8 d-flex align-items-end">
+<div id="challanResult"></div>
+</div>
+
+</div>
+
+<div id="hiddenItems"></div>
+
+<button
+type="submit"
+class="btn btn-primary w-100 mt-4"
+id="saveBtn"
+disabled>
+
+Save Bill
+
+</button>
+
+</form>
+
+</div>
+
 </div>
 
 <script th:inline="javascript">
-/*<![CDATA[*/
 
-// Thymeleaf will serialize BrandBillingDTO correctly since it's a clean DTO
-const brands = /*[[${brands}]]*/ [];
-console.log("Brands loaded:", brands); // ← check this first in console
+const brands = [[${brands}]];
 
-let billItems = [];
 let selectedBrand = null;
+let billItems = [];
 
 const searchInput = document.getElementById("brandSearch");
-const resultsBox = document.getElementById("searchResults");
+const resultBox = document.getElementById("searchResults");
 const sizeSelect = document.getElementById("sizeSelect");
-const quantityInput = document.getElementById("quantity");
-const saveBtn = document.getElementById("saveBtn");
+const qtyInput = document.getElementById("qtyInput");
 
-// LIVE SEARCH
-searchInput.addEventListener("input", function () {
-    const query = this.value.toLowerCase().trim();
-    resultsBox.innerHTML = "";
+searchInput.addEventListener("input", function(){
 
-    if (!query) {
-        resultsBox.classList.add("d-none");
-        return;
-    }
+const text = this.value.toLowerCase();
 
-    const filtered = brands.filter(b => b.name && b.name.toLowerCase().includes(query));
+resultBox.innerHTML="";
 
-    if (filtered.length === 0) {
-        resultsBox.innerHTML = `<div class="search-item text-danger">No brand found</div>`;
-    } else {
-        filtered.forEach(brand => {
-            const div = document.createElement("div");
-            div.className = "search-item";
-            div.textContent = brand.name;
-            div.addEventListener("click", () => selectBrand(brand.id));
-            resultsBox.appendChild(div);
-        });
-    }
+if(!text){
+resultBox.classList.add("d-none");
+return;
+}
 
-    resultsBox.classList.remove("d-none");
+const filtered = brands.filter(b =>
+b.name.toLowerCase().includes(text)
+);
+
+filtered.forEach(brand => {
+
+const div=document.createElement("div");
+div.className="search-item";
+div.innerText=brand.name;
+div.onclick=()=>selectBrand(brand.id);
+
+resultBox.appendChild(div);
+
 });
 
-// Hide dropdown when clicking outside
-document.addEventListener("click", function (e) {
-    if (!searchInput.contains(e.target) && !resultsBox.contains(e.target)) {
-        resultsBox.classList.add("d-none");
-    }
+resultBox.classList.remove("d-none");
+
 });
 
-// SELECT BRAND
-function selectBrand(id) {
-    selectedBrand = brands.find(b => Number(b.id) === Number(id));
-    if (!selectedBrand) return;
+function selectBrand(id){
 
-    console.log("Selected brand:", selectedBrand);
-    console.log("Sizes:", selectedBrand.sizes);
+selectedBrand = brands.find(b => b.id == id);
 
-    searchInput.value = selectedBrand.name;
-    resultsBox.classList.add("d-none");
+searchInput.value = selectedBrand.name;
 
-    sizeSelect.innerHTML = `<option value="">Select Size</option>`;
+resultBox.classList.add("d-none");
 
-    if (!selectedBrand.sizes || selectedBrand.sizes.length === 0) {
-        sizeSelect.innerHTML += `<option disabled>No sizes available</option>`;
-        return;
-    }
+sizeSelect.innerHTML = `<option value="">Select Size</option>`;
 
-    selectedBrand.sizes.forEach(size => {
-        sizeSelect.innerHTML +=
-            `<option value="${size.id}"
-                     data-price="${size.price}"
-                     data-label="${size.sizeLabel}">
-                ${size.sizeLabel} - ₹${size.price}
-             </option>`;
-    });
+const sizes = selectedBrand.sizes || selectedBrand.brandSizes || [];
+
+sizes.forEach(size => {
+
+const price = size.sellingPrice || size.price || size.mrp;
+
+sizeSelect.innerHTML +=
+`<option
+value="${size.id}"
+data-price="${price}"
+data-label="${size.sizeLabel}">
+
+${size.sizeLabel} - ₹${price}
+
+</option>`;
+
+});
+
 }
 
-// ADD ITEM
-function addItem() {
-    if (!selectedBrand) { alert("Select a brand first."); return; }
+qtyInput.addEventListener("keypress",function(e){
 
-    const selectedOption = sizeSelect.options[sizeSelect.selectedIndex];
-    if (!selectedOption || !selectedOption.value) { alert("Select a size."); return; }
-
-    const qty = parseInt(quantityInput.value);
-    if (!qty || qty <= 0) { alert("Enter a valid quantity."); return; }
-
-    const price = parseFloat(selectedOption.dataset.price);
-    const sizeLabel = selectedOption.dataset.label;
-    const brandSizeId = selectedOption.value;
-
-    const existing = billItems.find(i => i.brandSizeId == brandSizeId);
-    if (existing) {
-        existing.quantity += qty;
-        existing.lineTotal = existing.quantity * existing.price;
-    } else {
-        billItems.push({
-            brandSizeId,
-            brandName: selectedBrand.name,
-            sizeLabel,
-            price,
-            quantity: qty,
-            lineTotal: price * qty
-        });
-    }
-
-    renderTable();
+if(e.key==="Enter"){
+e.preventDefault();
+addItem();
 }
 
-// RENDER TABLE
-function renderTable() {
-    const tbody = document.getElementById("billTableBody");
-    const hiddenDiv = document.getElementById("hiddenItems");
-    tbody.innerHTML = "";
-    hiddenDiv.innerHTML = "";
+});
 
-    let total = 0;
+function addItem(){
 
-    billItems.forEach((item, index) => {
-        total += item.lineTotal;
-
-        tbody.innerHTML += `
-            <tr>
-                <td>${item.brandName}</td>
-                <td>${item.sizeLabel}</td>
-                <td>₹${item.price.toFixed(2)}</td>
-                <td class="text-center">
-                    <div class="d-flex justify-content-center align-items-center gap-2">
-                        <button type="button" class="btn btn-sm btn-outline-danger qty-btn"
-                                onclick="decreaseQty(${index})">-</button>
-                        <span>${item.quantity}</span>
-                        <button type="button" class="btn btn-sm btn-outline-success qty-btn"
-                                onclick="increaseQty(${index})">+</button>
-                    </div>
-                </td>
-                <td>₹${item.lineTotal.toFixed(2)}</td>
-                <td>
-                    <button type="button" class="btn btn-danger btn-sm"
-                            onclick="removeItem(${index})">✕</button>
-                </td>
-            </tr>`;
-
-        hiddenDiv.innerHTML += `
-            <input type="hidden" name="items[${index}].brandSizeId" value="${item.brandSizeId}">
-            <input type="hidden" name="items[${index}].quantity" value="${item.quantity}">`;
-    });
-
-    document.getElementById("grandTotal").innerText = total.toFixed(2);
-    saveBtn.disabled = billItems.length === 0;
+if(!selectedBrand){
+alert("Select brand");
+return;
 }
 
-function increaseQty(index) {
-    billItems[index].quantity++;
-    billItems[index].lineTotal = billItems[index].quantity * billItems[index].price;
-    renderTable();
+const option = sizeSelect.options[sizeSelect.selectedIndex];
+
+if(!option.value){
+alert("Select size");
+return;
 }
 
-function decreaseQty(index) {
-    if (billItems[index].quantity > 1) {
-        billItems[index].quantity--;
-        billItems[index].lineTotal = billItems[index].quantity * billItems[index].price;
-        renderTable();
-    }
+const qty = parseInt(qtyInput.value);
+
+const price = parseFloat(option.dataset.price);
+
+const sizeLabel = option.dataset.label;
+
+const brandSizeId = option.value;
+
+const existing = billItems.find(i => i.brandSizeId == brandSizeId);
+
+if(existing){
+
+existing.quantity += qty;
+existing.total = existing.quantity * existing.price;
+
+}else{
+
+billItems.push({
+
+brandSizeId:brandSizeId,
+brandName:selectedBrand.name,
+sizeLabel:sizeLabel,
+price:price,
+quantity:qty,
+total:price*qty
+
+});
+
 }
 
-function removeItem(index) {
-    billItems.splice(index, 1);
-    renderTable();
+renderTable();
+
+searchInput.value="";
+sizeSelect.innerHTML="<option value=''>Select Size</option>";
+qtyInput.value=1;
+searchInput.focus();
+
 }
 
-/*]]>*/
+function renderTable(){
+
+const tbody=document.getElementById("billTableBody");
+const hidden=document.getElementById("hiddenItems");
+
+tbody.innerHTML="";
+hidden.innerHTML="";
+
+let grand=0;
+
+billItems.forEach((item,index)=>{
+
+grand += item.total;
+
+tbody.innerHTML +=
+
+`<tr>
+
+<td>${item.brandName}</td>
+
+<td>${item.sizeLabel}</td>
+
+<td>₹${item.price}</td>
+
+<td>
+
+<div class="qty-box">
+
+<button
+type="button"
+class="btn btn-sm btn-outline-secondary"
+onclick="decreaseQty(${index})">
+
+-
+
+</button>
+
+<span class="mx-2">${item.quantity}</span>
+
+<button
+type="button"
+class="btn btn-sm btn-outline-secondary"
+onclick="increaseQty(${index})">
+
++
+
+</button>
+
+</div>
+
+</td>
+
+<td>₹${item.total.toFixed(2)}</td>
+
+<td>
+
+<button
+type="button"
+class="btn btn-danger btn-sm"
+onclick="removeItem(${index})">
+
+X
+
+</button>
+
+</td>
+
+</tr>`;
+
+hidden.innerHTML +=
+
+`<input
+type="hidden"
+name="items[${index}].brandSizeId"
+value="${item.brandSizeId}">
+
+<input
+type="hidden"
+name="items[${index}].quantity"
+value="${item.quantity}">`;
+
+});
+
+document.getElementById("grandTotal").innerText = grand.toFixed(2);
+
+document.getElementById("saveBtn").disabled = billItems.length === 0;
+
+calculateChallan();
+
+}
+
+function increaseQty(index){
+
+billItems[index].quantity += 1;
+
+billItems[index].total =
+billItems[index].quantity * billItems[index].price;
+
+renderTable();
+
+}
+
+function decreaseQty(index){
+
+if(billItems[index].quantity > 1){
+
+billItems[index].quantity -= 1;
+
+billItems[index].total =
+billItems[index].quantity * billItems[index].price;
+
+}else{
+
+billItems.splice(index,1);
+
+}
+
+renderTable();
+
+}
+
+function removeItem(index){
+
+billItems.splice(index,1);
+
+renderTable();
+
+}
+
+function calculateChallan(){
+
+const grand=parseFloat(document.getElementById("grandTotal").innerText)||0;
+
+const challan=parseFloat(document.getElementById("challanAmount").value)||0;
+
+const result=document.getElementById("challanResult");
+
+if(!challan){
+result.innerHTML="";
+return;
+}
+
+if(challan >= grand){
+
+const balance = challan - grand;
+
+result.innerHTML =
+`<span class="good">Enough Money (Balance ₹${balance.toFixed(2)})</span>`;
+
+}else{
+
+const shortage = grand - challan;
+
+result.innerHTML =
+`<span class="bad">Need ₹${shortage.toFixed(2)} more</span>`;
+
+}
+
+}
+
 </script>
 
 </body>

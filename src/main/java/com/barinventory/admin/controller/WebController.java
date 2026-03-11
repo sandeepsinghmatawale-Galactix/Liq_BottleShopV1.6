@@ -299,11 +299,16 @@ public class WebController {
             model.addAttribute("error", "No active products found. Please add products first.");
         }
 
+        // ✅ ADD THIS — fetch previous closing stock for pre-fill
+        Map<Long, BigDecimal> previousClosing = 
+            sessionService.getPreviousClosingForStockroom(inv.getBar().getBarId());
+
         model.addAttribute("inv", inv);
         model.addAttribute("products", products);
+        model.addAttribute("previousClosing", previousClosing); // ✅ pass to template
         return "stockroom";
     }
-
+    
     @PostMapping("/stockroom/{sessionId}")
     public String saveStockroom(@PathVariable Long sessionId,
             @RequestParam Map<String, String> formData, Model model) {
@@ -313,18 +318,25 @@ public class WebController {
             List<StockroomInventory> inventories = new ArrayList<>();
 
             for (Product product : products) {
-                String opening = formData.get("opening_" + product.getProductId());
+                String opening  = formData.get("opening_"  + product.getProductId());
                 String received = formData.get("received_" + product.getProductId());
                 String closing  = formData.get("closing_"  + product.getProductId());
                 String remarks  = formData.get("remarks_"  + product.getProductId());
 
                 if (opening != null || received != null || closing != null) {
+                    BigDecimal o = parseDecimal(opening);
+                    BigDecimal r = parseDecimal(received);
+                    BigDecimal c = parseDecimal(closing);
+                    BigDecimal transferred = o.add(r).subtract(c); // ✅ calculate transferred
+
                     StockroomInventory inventory = StockroomInventory.builder()
                             .session(inv)
                             .product(product)
-                            .openingStock(parseDecimal(opening))
-                            .receivedStock(parseDecimal(received))
-                            .closingStock(parseDecimal(closing))
+                            .openingStock(o)
+                            .receivedStock(r)
+                            .closingStock(c)
+                            .transferredOut(transferred.compareTo(BigDecimal.ZERO) >= 0
+                                    ? transferred : BigDecimal.ZERO) // ✅ never negative
                             .remarks(remarks)
                             .build();
                     inventories.add(inventory);
@@ -337,13 +349,16 @@ public class WebController {
 
         } catch (Exception e) {
             InventorySession inv = sessionService.getSession(sessionId);
+            // ✅ re-fetch previousClosing on error too
+            Map<Long, BigDecimal> previousClosing =
+                sessionService.getPreviousClosingForStockroom(inv.getBar().getBarId());
             model.addAttribute("inv", inv);
             model.addAttribute("products", productService.getAllActiveProducts());
+            model.addAttribute("previousClosing", previousClosing);
             model.addAttribute("error", e.getMessage());
             return "stockroom";
         }
     }
-
     // ═══════════════════════════════════════════════════
     //  DISTRIBUTION
     // ═══════════════════════════════════════════════════
@@ -397,7 +412,7 @@ public class WebController {
         Bar bar = inv.getBar();
 
         Map<Long, BarProductPrice> prices = pricingService.getPriceMapForBar(bar.getBarId());
-        Map<Long, BigDecimal> distributionMap = sessionService.getDistributionMapForSession(sessionId);
+        Map<String, BigDecimal> distributionMap = sessionService.getDistributionMapForSession(sessionId); // ✅ String key
         Map<String, BigDecimal> previousClosing = sessionService.getPreviousClosingForWells(bar.getBarId());
 
         model.addAttribute("session", inv);

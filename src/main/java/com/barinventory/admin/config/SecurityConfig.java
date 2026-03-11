@@ -22,13 +22,11 @@ public class SecurityConfig {
 
     private final UserDetailsService userDetailsService;
 
-    // ✅ Secure BCrypt Password Encoder
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder(10); // strength 10 (default & safe)
+        return new BCryptPasswordEncoder(10);
     }
 
-    // ✅ Authentication Provider
     @Bean
     public DaoAuthenticationProvider authenticationProvider() {
         DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
@@ -37,25 +35,38 @@ public class SecurityConfig {
         return authProvider;
     }
 
-    // ✅ Authentication Manager
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
         return config.getAuthenticationManager();
     }
 
-    // ✅ Security Filter Chain
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-
         http
-            .authenticationProvider(authenticationProvider())  // ✅ VERY IMPORTANT
+            // ✅ Disable CSRF only for REST API endpoints (fetch calls from JS)
+            .csrf(csrf -> csrf
+                .ignoringRequestMatchers("/api/**", "/sessions/wells/*/save")
+            )
+            .authenticationProvider(authenticationProvider())
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/css/**", "/js/**", "/images/**").permitAll()
+                // ✅ Public static resources
+                .requestMatchers("/css/**", "/js/**", "/images/**", "/webjars/**").permitAll()
+                // ✅ Public pages
                 .requestMatchers("/login", "/error", "/").permitAll()
-                .requestMatchers("/dashboard").hasAnyRole("ADMIN","BAR_OWNER","BAR_STAFF")
+                // ✅ Dashboard - all authenticated roles
+                .requestMatchers("/dashboard").hasAnyRole("ADMIN", "BAR_OWNER", "BAR_STAFF")
+                // ✅ Admin only
                 .requestMatchers("/admin/**").hasRole("ADMIN")
+                // ✅ Bar management
                 .requestMatchers("/bars/new", "/bars/edit/**").hasAnyRole("ADMIN", "BAR_OWNER")
-                .requestMatchers("/sessions/**", "/inventory/**").hasAnyRole("ADMIN", "BAR_OWNER", "BAR_STAFF")
+                // ✅ Inventory flows
+                .requestMatchers(
+                    "/sessions/**",
+                    "/stockroom/**",
+                    "/inventory/**",
+                    "/api/**"           // ✅ covers /api/sessions/{id}/commit
+                ).hasAnyRole("ADMIN", "BAR_OWNER", "BAR_STAFF")
+                // ✅ Everything else requires login
                 .anyRequest().authenticated()
             )
             .formLogin(form -> form
@@ -73,6 +84,26 @@ public class SecurityConfig {
                 .invalidateHttpSession(true)
                 .deleteCookies("JSESSIONID")
                 .permitAll()
+            )
+            .sessionManagement(session -> session
+                .maximumSessions(1)
+                .maxSessionsPreventsLogin(false)
+            )
+            // ✅ Proper 403 handler - redirects to login with error instead of whitelabel
+            .exceptionHandling(ex -> ex
+                .accessDeniedHandler((request, response, accessDeniedException) -> {
+                    String uri = request.getRequestURI();
+                    // ✅ API calls get JSON error, not redirect
+                    if (uri.startsWith("/api/")) {
+                        response.setStatus(403);
+                        response.setContentType("application/json");
+                        response.getWriter().write(
+                            "{\"error\":\"Forbidden\",\"path\":\"" + uri + "\"}"
+                        );
+                    } else {
+                        response.sendRedirect("/login?error=403");
+                    }
+                })
             );
 
         return http.build();

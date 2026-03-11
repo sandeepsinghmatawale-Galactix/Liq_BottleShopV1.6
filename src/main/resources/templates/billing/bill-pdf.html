@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Bill</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 13px;
+            color: #1a1a1a;
+            background: #fff;
+            padding: 40px;
+        }
+
+        /* ── HEADER ── */
+        .header {
+            display: table;
+            width: 100%;
+            border-bottom: 2px solid #b91c1c;
+            padding-bottom: 16px;
+            margin-bottom: 24px;
+        }
+        .header-left  { display: table-cell; vertical-align: middle; }
+        .header-right { display: table-cell; text-align: right; vertical-align: middle; }
+
+        .bill-title {
+            font-size: 26px;
+            font-weight: bold;
+            color: #b91c1c;
+        }
+        .bill-subtitle { font-size: 13px; color: #6b7280; margin-top: 4px; }
+
+        .bill-meta-right { font-size: 13px; color: #374151; }
+        .bill-meta-right strong { display: block; font-size: 15px; color: #111; }
+
+        /* ── META GRID ── */
+        .meta-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 24px;
+        }
+        .meta-table td {
+            padding: 10px 14px;
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            width: 25%;
+            vertical-align: top;
+        }
+        .meta-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #9ca3af;
+            margin-bottom: 4px;
+        }
+        .meta-value {
+            font-size: 13px;
+            font-weight: 600;
+            color: #111827;
+        }
+        .badge-finalized {
+            background: #d1fae5;
+            color: #065f46;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+        .badge-draft {
+            background: #fef3c7;
+            color: #92400e;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        /* ── ITEMS TABLE ── */
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        .items-table thead tr {
+            background: #1f2937;
+            color: #fff;
+        }
+        .items-table thead th {
+            padding: 10px 12px;
+            text-align: left;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+        }
+        .items-table thead th.right { text-align: right; }
+        .items-table thead th.center { text-align: center; }
+
+        .items-table tbody tr { border-bottom: 1px solid #e5e7eb; }
+        .items-table tbody tr:nth-child(even) { background: #f9fafb; }
+        .items-table tbody td {
+            padding: 10px 12px;
+            font-size: 13px;
+            color: #374151;
+        }
+        .items-table tbody td.right  { text-align: right; }
+        .items-table tbody td.center { text-align: center; }
+        .items-table tbody td.green  { color: #15803d; font-weight: 600; text-align: right; }
+
+        /* ── TOTALS ── */
+        .totals-wrap {
+            text-align: right;
+            margin-top: 8px;
+        }
+        .total-line {
+            display: inline-block;
+            border-top: 2px solid #e5e7eb;
+            padding-top: 10px;
+            min-width: 260px;
+        }
+        .total-label {
+            font-size: 13px;
+            color: #6b7280;
+            display: inline-block;
+            margin-right: 20px;
+        }
+        .total-amount {
+            font-size: 20px;
+            font-weight: bold;
+            color: #15803d;
+        }
+        .item-count {
+            font-size: 12px;
+            color: #9ca3af;
+            float: left;
+            padding-top: 14px;
+        }
+
+        /* ── FOOTER ── */
+        .footer {
+            margin-top: 40px;
+            border-top: 1px solid #e5e7eb;
+            padding-top: 14px;
+            font-size: 11px;
+            color: #9ca3af;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+    <div class="header-left">
+        <div class="bill-title">&#127990; AlcoBevInventory</div>
+        <div class="bill-subtitle">Official Bill / Invoice</div>
+    </div>
+    <div class="header-right">
+        <div class="bill-meta-right">
+            <strong th:text="'Bill #' + ${bill.billId}">Bill #</strong>
+            <span th:text="${#temporals.format(bill.createdAt, 'dd MMM yyyy, hh:mm a')}"></span>
+        </div>
+    </div>
+</div>
+
+<!-- META INFO -->
+<table class="meta-table">
+    <tr>
+        <td>
+            <div class="meta-label">Bill ID</div>
+            <div class="meta-value" th:text="'#' + ${bill.billId}"></div>
+        </td>
+        <td>
+            <div class="meta-label">Created By</div>
+            <div class="meta-value" th:text="${bill.createdBy}"></div>
+        </td>
+        <td>
+            <div class="meta-label">Date &amp; Time</div>
+            <div class="meta-value"
+                 th:text="${#temporals.format(bill.createdAt, 'dd MMM yyyy, hh:mm a')}"></div>
+        </td>
+        <td>
+            <div class="meta-label">Status</div>
+            <div class="meta-value">
+                <span th:if="${bill.finalized}"   class="badge-finalized">&#10004; Finalized</span>
+                <span th:unless="${bill.finalized}" class="badge-draft">&#8987; Draft</span>
+            </div>
+        </td>
+    </tr>
+</table>
+
+<!-- ITEMS TABLE -->
+<table class="items-table">
+    <thead>
+        <tr>
+            <th style="width:40px;">#</th>
+            <th>Brand</th>
+            <th>Size</th>
+            <th class="right">Unit Price</th>
+            <th class="center">Qty</th>
+            <th class="right">Line Total</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr th:each="item, stat : ${bill.items}">
+            <td th:text="${stat.index + 1}"></td>
+            <td th:text="${item.brandName}"></td>
+            <td th:text="${item.sizeLabel}"></td>
+            <td class="right"
+                th:text="'Rs. ' + ${#numbers.formatDecimal(item.unitPrice, 1, 2)}"></td>
+            <td class="center" th:text="${item.quantity}"></td>
+            <td class="green"
+                th:text="'Rs. ' + ${#numbers.formatDecimal(item.lineTotal, 1, 2)}"></td>
+        </tr>
+    </tbody>
+</table>
+
+<!-- TOTALS -->
+<div class="totals-wrap">
+    <span class="item-count"
+          th:text="${#lists.size(bill.items)} + ' item(s)'"></span>
+    <div class="total-line">
+        <span class="total-label">Grand Total</span>
+        <span class="total-amount"
+              th:text="'Rs. ' + ${#numbers.formatDecimal(bill.grandTotal, 1, 2)}"></span>
+    </div>
+</div>
+
+<!-- FOOTER -->
+<div class="footer">
+    Generated by BarInventory &nbsp;|&nbsp;
+    <span th:text="${#temporals.format(bill.createdAt, 'dd MMM yyyy')}"></span>
+</div>
+
+</body>
+</html>

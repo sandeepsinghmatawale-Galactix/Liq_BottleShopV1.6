@@ -19,5 +19,12 @@ public interface BillRepository extends JpaRepository<Bill, Long> {
 
     // Admin reporting (optional future)
     List<Bill> findByUserId(Long userId);
+    
+    
+ // Find all bills by user (for "My Bills" page)
+    List<Bill> findByUserIdOrderByCreatedAtDesc(Long userId);
+
+    // Find all finalized bills
+    List<Bill> findByFinalizedTrue();
 	
 }

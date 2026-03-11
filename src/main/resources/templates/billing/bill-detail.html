@@ -1,189 +1,256 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
-    <title>Bill Detail</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bill Detail</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
-    <!-- Bootstrap 5 -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 
-    <style>
-        body { background-color: #f8f9fa; }
+<style>
+body { background-color: #f8f9fa; }
 
-        /* ── Reused from bill-create ── */
-        .main-card {
-            border-radius: 18px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
-            border: none;
-        }
-        .header-title { font-weight: 700; color: #b91c1c; }
+.main-card {
+border-radius: 18px;
+box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+border: none;
+}
 
-        /* ── Reused from brand-list ── */
-        .table thead { background-color: #212529; color: white; }
+.header-title {
+font-weight: 700;
+color: #b91c1c;
+}
 
-        /* ── Detail-specific ── */
-        .meta-card {
-            background: #f8f9fa;
-            border-radius: 12px;
-            padding: 16px 20px;
-            border: 1px solid #e9ecef;
-        }
-        .meta-label {
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-            color: #6c757d;
-            margin-bottom: 4px;
-        }
-        .meta-value { font-weight: 600; color: #212529; font-size: 0.95rem; }
+.table thead {
+background-color: #212529;
+color: white;
+}
 
-        .total-box  { font-size: 1.5rem; font-weight: bold; }
-        .grand-total { color: #16a34a; }
+.meta-card {
+background: #f8f9fa;
+border-radius: 12px;
+padding: 16px 20px;
+border: 1px solid #e9ecef;
+}
 
-        .line-total-col { font-weight: 600; color: #16a34a; }
+.meta-label {
+font-size: 0.75rem;
+text-transform: uppercase;
+letter-spacing: 0.06em;
+color: #6c757d;
+margin-bottom: 4px;
+}
 
-        .badge-finalized { background-color: #16a34a !important; font-size: 0.82rem; }
-        .badge-draft     { background-color: #d97706 !important; font-size: 0.82rem; }
+.meta-value {
+font-weight: 600;
+color: #212529;
+font-size: 0.95rem;
+}
 
-        /* ── Print styles ── */
-        @media print {
-            .no-print { display: none !important; }
-            body { background: white; }
-            .main-card { box-shadow: none; border: 1px solid #dee2e6 !important; }
-            .meta-card { border: 1px solid #dee2e6; }
-        }
-    </style>
+.total-box {
+font-size: 1.5rem;
+font-weight: bold;
+}
+
+.grand-total {
+color: #16a34a;
+}
+
+.line-total-col {
+font-weight: 600;
+color: #16a34a;
+}
+
+.badge-finalized {
+background-color: #16a34a !important;
+}
+
+.badge-draft {
+background-color: #d97706 !important;
+}
+
+@media print {
+.no-print { display:none !important; }
+body { background:white; }
+.main-card { box-shadow:none; border:1px solid #dee2e6 !important; }
+}
+</style>
 </head>
+
 <body>
 
 <div class="container py-4">
-    <div class="card main-card p-4">
+<div class="card main-card p-4">
 
-        <!-- ── Header ── -->
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h3 class="header-title">
-                🧾 Bill
-                <span th:text="'#' + ${bill.billId}"></span>
-            </h3>
-            <div class="d-flex gap-2 no-print">
-                <button onclick="window.print()"
-                        class="btn btn-outline-secondary btn-sm">
-                    🖨️ Print
-                </button>
-                <a th:href="@{/billing/bills}"
-                   class="btn btn-outline-secondary btn-sm">
-                    ← My Bills
-                </a>
-                <a th:href="@{/billing/bills/new}"
-                   class="btn btn-danger btn-sm">
-                    + New Bill
-                </a>
+<!-- HEADER -->
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+
+    <h3 class="header-title">
+        🧾 Bill <span th:text="'#' + ${bill.billId}"></span>
+    </h3>
+
+    <div class="d-flex flex-wrap gap-2 no-print align-items-center">
+
+        <!-- Print -->
+        <button onclick="window.print()" class="btn btn-outline-secondary btn-sm">
+            🖨️ Print
+        </button>
+
+        <!-- PDF -->
+        <a th:href="@{/billing/bills/{id}/pdf(id=${bill.billId})}"
+           class="btn btn-success btn-sm">
+            📄 PDF
+        </a>
+
+        <!-- Email — inline form so user can type recipient address -->
+        <form th:action="@{/billing/bills/{id}/email(id=${bill.billId})}"
+              method="get"
+              class="d-flex gap-2 align-items-center no-print">
+            <input type="email"
+                   name="to"
+                   class="form-control form-control-sm"
+                   placeholder="customer@email.com"
+                   required
+                   style="width:200px;"/>
+            <button type="submit" class="btn btn-primary btn-sm">
+                📧 Email
+            </button>
+        </form>
+
+        <!-- WhatsApp -->
+        <a th:href="'https://wa.me/?text=Bill%20Download%20Link:%20' + @{/billing/bills/{id}/pdf(id=${bill.billId})}"
+           target="_blank"
+           class="btn btn-success btn-sm">
+            💬 WhatsApp
+        </a>
+
+        <!-- Back -->
+        <a th:href="@{/billing/bills}"
+           class="btn btn-outline-secondary btn-sm">
+            ← My Bills
+        </a>
+
+        <!-- New Bill -->
+        <a th:href="@{/billing/bills/new}"
+           class="btn btn-danger btn-sm">
+            + New Bill
+        </a>
+
+    </div>
+</div>
+
+<hr>
+
+<!-- SUCCESS / ERROR flash messages -->
+<div th:if="${success}" class="alert alert-success alert-dismissible fade show" role="alert">
+    <span th:text="${success}"></span>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+<div th:if="${error}" class="alert alert-danger alert-dismissible fade show" role="alert">
+    <span th:text="${error}"></span>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+
+<!-- META INFO -->
+<div class="row g-3 mb-4">
+
+    <div class="col-6 col-md-3">
+        <div class="meta-card">
+            <div class="meta-label">Bill ID</div>
+            <div class="meta-value" th:text="'#' + ${bill.billId}"></div>
+        </div>
+    </div>
+
+    <div class="col-6 col-md-3">
+        <div class="meta-card">
+            <div class="meta-label">Created By</div>
+            <div class="meta-value" th:text="${bill.createdBy}"></div>
+        </div>
+    </div>
+
+    <div class="col-6 col-md-3">
+        <div class="meta-card">
+            <div class="meta-label">Date &amp; Time</div>
+            <div class="meta-value"
+                 th:text="${#temporals.format(bill.createdAt,'dd MMM yyyy, hh:mm a')}">
             </div>
         </div>
+    </div>
 
-        <hr>
-
-        <!-- ── Flash message (from redirect) ── -->
-        <div th:if="${successMsg}"
-             class="alert alert-success alert-dismissible fade show no-print" role="alert">
-            <span th:text="${successMsg}"></span>
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-
-        <!-- ── Bill meta info ── -->
-        <div class="row g-3 mb-4">
-            <div class="col-6 col-md-3">
-                <div class="meta-card">
-                    <div class="meta-label">Bill ID</div>
-                    <div class="meta-value" th:text="'#' + ${bill.billId}">--</div>
-                </div>
-            </div>
-            <div class="col-6 col-md-3">
-                <div class="meta-card">
-                    <div class="meta-label">Created By</div>
-                    <div class="meta-value" th:text="${bill.createdBy}">--</div>
-                </div>
-            </div>
-            <div class="col-6 col-md-3">
-                <div class="meta-card">
-                    <div class="meta-label">Date &amp; Time</div>
-                    <div class="meta-value"
-                         th:text="${#temporals.format(bill.createdAt, 'dd MMM yyyy, hh:mm a')}">
-                        --
-                    </div>
-                </div>
-            </div>
-            <div class="col-6 col-md-3">
-                <div class="meta-card">
-                    <div class="meta-label">Status</div>
-                    <div class="meta-value">
-                        <span th:if="${bill.finalized}"
-                              class="badge badge-finalized">✔ Finalized</span>
-                        <span th:unless="${bill.finalized}"
-                              class="badge badge-draft">⏳ Draft</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- ── Items table ── -->
-        <div class="table-responsive">
-            <table class="table table-bordered align-middle">
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>Brand</th>
-                        <th>Size</th>
-                        <th>Unit Price</th>
-                        <th class="text-center">Qty</th>
-                        <th>Line Total</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr th:each="item, stat : ${bill.items}">
-                        <td th:text="${stat.index + 1}">1</td>
-                        <td th:text="${item.brandName}">--</td>
-                        <td th:text="${item.sizeLabel}">--</td>
-                        <td th:text="'₹ ' + ${#numbers.formatDecimal(item.unitPrice, 1, 2)}">--</td>
-                        <td class="text-center" th:text="${item.quantity}">--</td>
-                        <td class="line-total-col"
-                            th:text="'₹ ' + ${#numbers.formatDecimal(item.lineTotal, 1, 2)}">--</td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-
-        <!-- ── Grand Total ── -->
-        <div class="d-flex justify-content-between align-items-center total-box mt-2">
-            <span class="text-muted" style="font-size:1rem">
-                <span th:text="${#lists.size(bill.items)}">0</span> item(s) in this bill
-            </span>
-            <span>
-                Grand Total &nbsp;
-                <span class="grand-total">
-                    ₹ <span th:text="${#numbers.formatDecimal(bill.grandTotal, 1, 2)}">0.00</span>
+    <div class="col-6 col-md-3">
+        <div class="meta-card">
+            <div class="meta-label">Status</div>
+            <div class="meta-value">
+                <span th:if="${bill.finalized}" class="badge badge-finalized">
+                    ✔ Finalized
                 </span>
-            </span>
-        </div>
-
-        <!-- ── Bottom actions ── -->
-        <div class="row g-2 mt-4 no-print">
-            <div class="col-md-6">
-                <a th:href="@{/billing/bills}"
-                   class="btn btn-outline-secondary w-100">
-                    ← Back to My Bills
-                </a>
-            </div>
-            <div class="col-md-6">
-                <a th:href="@{/billing/bills/new}"
-                   class="btn btn-danger w-100">
-                    + Create New Bill
-                </a>
+                <span th:unless="${bill.finalized}" class="badge badge-draft">
+                    ⏳ Draft
+                </span>
             </div>
         </div>
+    </div>
 
-    </div><!-- /card -->
-</div><!-- /container -->
+</div>
+
+<!-- ITEMS TABLE -->
+<div class="table-responsive">
+    <table class="table table-bordered align-middle">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Brand</th>
+                <th>Size</th>
+                <th>Unit Price</th>
+                <th class="text-center">Qty</th>
+                <th>Line Total</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr th:each="item,stat : ${bill.items}">
+                <td th:text="${stat.index + 1}"></td>
+                <td th:text="${item.brandName}"></td>
+                <td th:text="${item.sizeLabel}"></td>
+                <td th:text="'₹ ' + ${#numbers.formatDecimal(item.unitPrice,1,2)}"></td>
+                <td class="text-center" th:text="${item.quantity}"></td>
+                <td class="line-total-col"
+                    th:text="'₹ ' + ${#numbers.formatDecimal(item.lineTotal,1,2)}">
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<!-- TOTAL -->
+<div class="d-flex justify-content-between align-items-center total-box mt-2">
+    <span class="text-muted" style="font-size:1rem">
+        <span th:text="${#lists.size(bill.items)}"></span> item(s)
+    </span>
+    <span>
+        Grand Total
+        <span class="grand-total">
+            ₹ <span th:text="${#numbers.formatDecimal(bill.grandTotal,1,2)}"></span>
+        </span>
+    </span>
+</div>
+
+<!-- BOTTOM ACTIONS -->
+<div class="row g-2 mt-4 no-print">
+    <div class="col-md-6">
+        <a th:href="@{/billing/bills}"
+           class="btn btn-outline-secondary w-100">
+            ← Back to My Bills
+        </a>
+    </div>
+    <div class="col-md-6">
+        <a th:href="@{/billing/bills/new}"
+           class="btn btn-danger w-100">
+            + Create New Bill
+        </a>
+    </div>
+</div>
+
+</div>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>

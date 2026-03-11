@@ -194,6 +194,20 @@ public class BillingServiceImpl implements BillingService {
         }
         return mapToBillResponse(bill);
     }
+    @Override
+    public Bill getBill(Long id) {
+
+        return billRepository.findById(id)
+                .orElseThrow(() ->
+                        new RuntimeException("Bill not found with id: " + id));
+
+    }
+    
+    @Override
+    public Bill findById(Long id) {
+        return billRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Bill not found with id: " + id));
+    }
 
     // ===================== MAPPERS =====================
     

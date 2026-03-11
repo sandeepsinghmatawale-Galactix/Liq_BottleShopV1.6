@@ -4,270 +4,670 @@
     <meta charset="UTF-8">
     <title>Well Inventory</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- CSRF for fetch() calls -->
+    <meta name="_csrf"        th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+
     <style>
-        .table-input    { width: 100px; }
-        .consumed-cell  { background-color: #f0fff0; font-weight: bold; }
-        .received-cell  { background-color: #e9ecef; }
-        .prefilled      { background-color: #fff9c4; }
-        .no-stock-row   { background-color: #f8f9fa; color: #6c757d; }
+        :root {
+            --bg:         #f0ede8;
+            --surface:    #ffffff;
+            --border:     #e0dbd3;
+            --border-dk:  #ccc6bc;
+            --amber:      #b87333;
+            --amber-bg:   #fdf5eb;
+            --amber-mid:  #f0d4a8;
+            --green:      #1a6b3c;
+            --green-bg:   #eaf5ef;
+            --green-mid:  #a8d9bb;
+            --blue:       #1d4ed8;
+            --blue-bg:    #eff6ff;
+            --red:        #b91c1c;
+            --red-bg:     #fef2f2;
+            --text:       #1c1917;
+            --text-mid:   #44403c;
+            --muted:      #a8a29e;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', sans-serif;
+            font-size: 14px;
+            padding-bottom: 90px;
+        }
+
+        /* ── TOPBAR ── */
+        .topbar {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            height: 54px;
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 20px;
+            position: sticky; top: 0; z-index: 100;
+            box-shadow: 0 1px 4px rgba(0,0,0,.05);
+        }
+        .tb-brand { font-family:'Syne',sans-serif; font-weight:800; font-size:1.05rem; color:var(--amber); }
+        .tb-info  { font-size:12px; color:var(--muted); font-weight:500; }
+        .tb-right { display:flex; align-items:center; gap:10px; }
+        .shift-chip {
+            background:var(--amber-bg); color:var(--amber);
+            border:1px solid var(--amber-mid);
+            padding:3px 10px; border-radius:20px;
+            font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.5px;
+        }
+        .stages { display:flex; align-items:center; gap:4px; }
+        .st {
+            width:24px; height:24px; border-radius:50%;
+            font-size:10px; font-weight:700;
+            display:flex; align-items:center; justify-content:center;
+            background:var(--border); color:var(--muted);
+        }
+        .st.done   { background:var(--green-bg); color:var(--green); border:1.5px solid var(--green-mid); }
+        .st.active { background:var(--amber); color:#fff; }
+        .stl { width:14px; height:1.5px; background:var(--border-dk); }
+
+        /* ── ALERTS ── */
+        .alerts { max-width:960px; margin:0 auto; padding:10px 16px 0; }
+        .astrip {
+            border-radius:8px; padding:10px 14px; font-size:13px;
+            display:none; align-items:center; gap:8px; margin-bottom:8px;
+        }
+        .astrip.show { display:flex; }
+        .astrip.err { background:var(--red-bg);   color:var(--red);   border:1px solid #fca5a5; }
+        .astrip.ok  { background:var(--green-bg); color:var(--green); border:1px solid var(--green-mid); }
+
+        /* ── PAGE HEADER ── */
+        .ph {
+            max-width:960px; margin:20px auto 4px; padding:0 16px;
+            display:flex; align-items:baseline; justify-content:space-between;
+        }
+        .ph-title { font-family:'Syne',sans-serif; font-size:1.4rem; font-weight:800; }
+        .ph-title span { color:var(--amber); }
+        .ph-sub { font-size:12px; color:var(--muted); }
+
+        /* ── TILE GRID ── */
+        .tiles { max-width:960px; margin:0 auto; padding:12px 16px 20px; display:flex; flex-direction:column; gap:14px; }
+
+        /* ── CATEGORY DIVIDER ── */
+        .cat-div { display:flex; align-items:center; gap:10px; padding:6px 0 2px; }
+        .cat-lbl { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--muted); white-space:nowrap; }
+        .cat-ln  { flex:1; height:1px; background:var(--border-dk); }
+
+        /* ── TILE ── */
+        .tile {
+            background:var(--surface);
+            border:1px solid var(--border);
+            border-radius:14px;
+            overflow:hidden;
+            box-shadow:0 1px 3px rgba(0,0,0,.04);
+            transition:box-shadow .2s;
+        }
+        .tile:hover { box-shadow:0 3px 14px rgba(0,0,0,.08); }
+
+        /* Tile header */
+        .tile-hdr {
+            display:flex; align-items:center; justify-content:space-between;
+            padding:14px 18px 12px;
+            border-bottom:1px solid var(--border);
+            background:#faf9f7; gap:14px;
+        }
+        .tile-left { display:flex; align-items:center; gap:12px; flex:1; min-width:0; }
+        .tile-emoji {
+            font-size:22px; width:42px; height:42px;
+            background:var(--bg); border:1px solid var(--border); border-radius:10px;
+            display:flex; align-items:center; justify-content:center; flex-shrink:0;
+        }
+        .tile-name { font-weight:700; font-size:15px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .tile-chips { display:flex; gap:4px; margin-top:4px; flex-wrap:wrap; }
+        .tchip {
+            font-size:10px; font-weight:600; padding:2px 7px;
+            border-radius:10px; background:var(--bg);
+            border:1px solid var(--border); color:var(--muted);
+        }
+
+        /* Aggregate badges */
+        .tile-agg { display:flex; gap:8px; flex-shrink:0; }
+        .agg {
+            display:flex; flex-direction:column; align-items:center;
+            padding:6px 14px; border-radius:9px; min-width:70px;
+        }
+        .agg .av { font-size:16px; font-weight:700; line-height:1.1; }
+        .agg .al { font-size:9px; font-weight:600; text-transform:uppercase; letter-spacing:.5px; margin-top:2px; opacity:.75; }
+        .agg.recv { background:var(--amber-bg); color:var(--amber); border:1px solid var(--amber-mid); }
+        .agg.cons { background:var(--green-bg); color:var(--green); border:1px solid var(--green-mid); }
+        .agg.sale { background:var(--blue-bg);  color:var(--blue);  border:1px solid #bfdbfe; }
+
+        /* Wells table */
+        .tw { overflow-x:auto; }
+        table.wt { width:100%; border-collapse:collapse; }
+        table.wt thead tr { background:#f7f5f2; }
+        table.wt thead th {
+            padding:8px 14px;
+            font-size:10px; font-weight:700;
+            text-transform:uppercase; letter-spacing:.7px;
+            color:var(--muted); border-bottom:1px solid var(--border);
+            white-space:nowrap;
+        }
+        table.wt thead th.c { text-align:center; }
+        table.wt thead th.r { text-align:right; }
+        table.wt tbody td { padding:10px 14px; border-bottom:1px solid #f0ede8; vertical-align:middle; }
+        table.wt tbody tr:last-child td { border-bottom:none; }
+        table.wt tbody tr:hover { background:#faf9f7; }
+
+        /* Well name cell */
+        .wn { display:flex; align-items:center; gap:8px; white-space:nowrap; }
+        .wnd { width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+        .wnd.c0 { background:#4f87f5; } .wnd.c1 { background:#e07b4a; }
+        .wnd.c2 { background:#3ab56e; } .wnd.c3 { background:#c46070; }
+        .wnd.c4 { background:#9b59b6; }
+        .wnt { font-size:12px; font-weight:700; color:var(--text-mid); text-transform:uppercase; letter-spacing:.5px; }
+
+        /* Inputs */
+        .wi {
+            border:1.5px solid var(--border); border-radius:7px;
+            padding:7px 10px; font-family:'Inter',sans-serif;
+            font-size:14px; font-weight:600; color:var(--text);
+            background:var(--surface); outline:none;
+            width:90px; text-align:right;
+            transition:border-color .15s, background .15s, box-shadow .15s;
+            -moz-appearance:textfield;
+        }
+        .wi::-webkit-outer-spin-button, .wi::-webkit-inner-spin-button { -webkit-appearance:none; }
+        .wi.opening { background:var(--amber-bg); border-color:var(--amber-mid); color:var(--amber); }
+        .wi.opening:focus { border-color:var(--amber); box-shadow:0 0 0 3px rgba(184,115,51,.12); }
+        .wi.received { background:#f0f4ff; border-color:#c7d7fd; color:var(--blue); cursor:default; }
+        .wi.closing  { border-color:var(--green-mid); font-size:15px; }
+        .wi.closing:focus { border-color:var(--green); background:var(--green-bg); box-shadow:0 0 0 3px rgba(26,107,60,.12); }
+
+        /* Consumed pill */
+        .cpill {
+            display:inline-flex; align-items:center; justify-content:center;
+            min-width:68px; padding:5px 10px; border-radius:6px;
+            font-size:13px; font-weight:700;
+            background:var(--border); color:var(--muted);
+            transition:all .2s;
+        }
+        .cpill.pos { background:var(--green-bg); color:var(--green); border:1px solid var(--green-mid); }
+        .cpill.neg { background:var(--red-bg);   color:var(--red);   border:1px solid #fca5a5; }
+
+        /* Price + sale */
+        .ptag {
+            font-size:12px; font-weight:600; color:var(--blue);
+            background:var(--blue-bg); border:1px solid #bfdbfe;
+            border-radius:5px; padding:3px 8px; white-space:nowrap;
+        }
+        .ptag.na { background:var(--bg); color:var(--muted); border-color:var(--border); }
+        .sval { font-size:13px; font-weight:700; color:var(--blue); white-space:nowrap; }
+        .sval.zero { color:var(--muted); }
+
+        /* ── ACTION BAR ── */
+        .abar {
+            position:fixed; bottom:0; left:0; right:0;
+            background:var(--surface); border-top:1px solid var(--border);
+            padding:10px 20px;
+            display:flex; align-items:center; justify-content:space-between;
+            z-index:100; box-shadow:0 -4px 16px rgba(0,0,0,.06);
+        }
+        .fstats { display:flex; gap:24px; }
+        .fs .fl { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:.4px; }
+        .fs .fv { font-size:1rem; font-weight:700; color:var(--text); }
+        .fs.green .fv { color:var(--green); }
+        .fs.amber .fv { color:var(--amber); }
+        .fs.blue  .fv { color:var(--blue);  }
+        .fbtns { display:flex; gap:10px; align-items:center; }
+        .btn-back {
+            background:transparent; border:1.5px solid var(--border-dk);
+            border-radius:8px; padding:9px 16px;
+            font-family:'Inter',sans-serif; font-size:13px; font-weight:500;
+            color:var(--muted); cursor:pointer; text-decoration:none;
+            display:flex; align-items:center; gap:6px; transition:all .15s;
+        }
+        .btn-back:hover { color:var(--text); border-color:var(--text); }
+        .btn-commit {
+            background:var(--green); border:none; border-radius:8px;
+            padding:10px 24px; font-family:'Inter',sans-serif;
+            font-size:14px; font-weight:600; color:#fff; cursor:pointer;
+            display:flex; align-items:center; gap:8px;
+            transition:background .15s, transform .1s;
+            box-shadow:0 2px 8px rgba(26,107,60,.25);
+        }
+        .btn-commit:hover { background:#145c30; }
+        .btn-commit:active { transform:scale(.98); }
+        .btn-commit:disabled { background:var(--border-dk); cursor:not-allowed; box-shadow:none; }
+
+        .empty-state { text-align:center; padding:60px 20px; color:var(--muted); }
+
+        @media(max-width:600px){
+            .tile-agg { display:none; }
+            .fstats { gap:12px; }
+            .wi { width:74px; }
+        }
     </style>
 </head>
 <body>
 
-<nav class="navbar navbar-dark bg-success">
-    <div class="container-fluid">
-        <span class="navbar-brand">
-            <i class="bi bi-cup-straw"></i>
-            Well Inventory - <span th:text="${bar.barName}"></span>
-        </span>
-        <span class="text-white">
-            Session #<span th:text="${sessionId}"></span>
-            | Shift: <span th:text="${inv.shiftType}"></span>
-        </span>
+<!-- TOPBAR -->
+<nav class="topbar">
+    <span class="tb-brand">BarInventory</span>
+    <span class="tb-info" th:text="${bar.barName + '  ·  Session #' + sessionId}"></span>
+    <div class="tb-right">
+        <div class="stages">
+            <div class="st done"><i class="bi bi-check" style="font-size:9px;"></i></div>
+            <div class="stl"></div>
+            <div class="st done"><i class="bi bi-check" style="font-size:9px;"></i></div>
+            <div class="stl"></div>
+            <div class="st active">3</div>
+        </div>
+        <span class="shift-chip" th:text="${inv.shiftType}">SHIFT</span>
     </div>
 </nav>
 
-<div class="container-fluid mt-4">
+<!-- ALERTS -->
+<div class="alerts">
+    <div id="alertErr" class="astrip err">
+        <i class="bi bi-exclamation-circle-fill"></i>
+        <span id="alertErrMsg"></span>
+    </div>
+    <div id="alertOk" class="astrip ok">
+        <i class="bi bi-check-circle-fill"></i>
+        <span id="alertOkMsg"></span>
+    </div>
+</div>
 
-    <div id="errorMsg"   class="alert alert-danger"  style="display:none;"></div>
-    <div id="successMsg" class="alert alert-success" style="display:none;"></div>
+<!-- PAGE HEADER -->
+<div class="ph">
+    <div>
+        <div class="ph-title">Well Inventory — <span>Stage 3</span></div>
+        <div class="ph-sub" style="margin-top:3px;">Enter closing stock per well · Sales auto-calculated</div>
+    </div>
+    <div class="ph-sub">
+        <span th:text="${#lists.size(products)}">0</span> products ·
+        <span th:text="${#lists.size(wellNames)}">0</span> wells
+    </div>
+</div>
 
-    <div class="alert alert-info">
-        <i class="bi bi-info-circle"></i>
-        Brands with <strong>previous closing stock</strong> are shown even if no
-        stock was distributed today. Enter their closing stock to track consumption.
+<!-- FORM -->
+<form id="wellForm" method="post">
+<div class="tiles">
+
+    <!--
+        Iterate products. For each product we render ONE tile.
+        Inside the tile we iterate wellNames to build table rows.
+        We only show a tile if at least one well has opening or received data.
+    -->
+    <th:block th:each="product, pStat : ${products}">
+
+        <!-- Category divider -->
+        <div th:if="${pStat.first or products[pStat.index - 1].category != product.category}"
+             class="cat-div">
+            <span class="cat-lbl" th:text="${product.category}"></span>
+            <div class="cat-ln"></div>
+        </div>
+
+        <!--
+            We need to decide whether to show this product tile.
+            We check: does ANY well have distribution or previousClosing data for this product?
+            Safe approach: iterate wellNames and collect a boolean using th:with on a counter trick.
+            Thymeleaf doesn't support early-break, so we count matching wells.
+        -->
+        <th:block th:with="
+            matchCount=${#lists.size(
+                wellNames.?[
+                    (distributionMap[product.productId + '_' + #object] != null
+                     and distributionMap[product.productId + '_' + #object] > 0)
+                    or
+                    (previousClosing[product.productId + '_' + #object] != null
+                     and previousClosing[product.productId + '_' + #object] > 0)
+                ]
+            )}">
+
+        <div th:if="${matchCount > 0}"
+             class="tile"
+             th:attr="data-product=${product.productId}">
+
+            <!-- TILE HEADER -->
+            <div class="tile-hdr">
+                <div class="tile-left">
+                    <div class="tile-emoji">
+                        <span th:switch="${product.category}">
+                            <span th:case="'WHISKY'">🥃</span>
+                            <span th:case="'VODKA'">🫙</span>
+                            <span th:case="'RUM'">🍶</span>
+                            <span th:case="'GIN'">🌿</span>
+                            <span th:case="'BEER'">🍺</span>
+                            <span th:case="'WINE'">🍷</span>
+                            <span th:case="*">🍾</span>
+                        </span>
+                    </div>
+                    <div>
+                        <div class="tile-name" th:text="${product.productName}">Name</div>
+                        <div class="tile-chips">
+                            <span class="tchip" th:text="${product.brand}"    th:if="${product.brand != null}"></span>
+                            <span class="tchip" th:text="${product.category}" th:if="${product.category != null}"></span>
+                            <span class="tchip" th:text="${product.volumeML + ' ml'}" th:if="${product.volumeML != null}"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Aggregate badges — updated by JS -->
+                <div class="tile-agg">
+                    <div class="agg recv">
+                        <div class="av r-agg" th:attr="data-product=${product.productId}">0</div>
+                        <div class="al">Received</div>
+                    </div>
+                    <div class="agg cons">
+                        <div class="av c-agg" th:attr="data-product=${product.productId}">0</div>
+                        <div class="al">Consumed</div>
+                    </div>
+                    <div class="agg sale">
+                        <div class="av s-agg" th:attr="data-product=${product.productId}">₹0</div>
+                        <div class="al">Est. Sale</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- WELLS TABLE -->
+            <div class="tw">
+                <table class="wt">
+                    <thead>
+                        <tr>
+                            <th style="width:140px;">Well</th>
+                            <th class="c">Opening<br>
+                                <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:9px;">← prev closing</span>
+                            </th>
+                            <th class="c">Received<br>
+                                <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:9px;">← distribution</span>
+                            </th>
+                            <th class="c" style="color:var(--green);">Closing Stock<br>
+                                <span style="font-weight:500;text-transform:none;letter-spacing:0;font-size:9px;color:var(--green);">← count &amp; enter</span>
+                            </th>
+                            <th class="c">Consumed</th>
+                            <th class="r">Price / unit</th>
+                            <th class="r">Est. Sale</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!--
+                            One <tr> per well.
+                            th:with resolves the map lookups for this product+well combo.
+                            We only render the row if there's opening or received data.
+                        -->
+                        <tr th:each="wellName, wStat : ${wellNames}"
+                            th:with="
+                                mapKey=${product.productId + '_' + wellName},
+                                received=${distributionMap[product.productId + '_' + wellName]},
+                                prevClose=${previousClosing[product.productId + '_' + wellName] != null ? previousClosing[product.productId + '_' + wellName] : 0},
+                                hasData=${
+                                    (distributionMap[product.productId + '_' + wellName] != null
+                                     and distributionMap[product.productId + '_' + wellName] > 0)
+                                    or
+                                    (previousClosing[product.productId + '_' + wellName] != null
+                                     and previousClosing[product.productId + '_' + wellName] > 0)
+                                },
+                                sp=${prices[product.productId] != null ? prices[product.productId].sellingPrice : null}"
+                            th:if="${hasData}">
+
+                            <!-- Well name -->
+                            <td>
+                                <div class="wn">
+                                    <div class="wnd" th:classappend="'c' + ${wStat.index % 5}"></div>
+                                    <span class="wnt" th:text="${wellName}"></span>
+                                </div>
+                            </td>
+
+                            <!-- Opening (pre-filled from prev closing) -->
+                            <td style="text-align:center;">
+                                <input type="number" step="0.01" min="0"
+                                       class="wi opening"
+                                       th:attr="data-product=${product.productId},
+                                                data-well=${wellName},
+                                                data-price=${sp}"
+                                       th:name="'opening_' + ${product.productId} + '_' + ${wellName}"
+                                       th:value="${prevClose}"/>
+                            </td>
+
+                            <!-- Received (read-only, from distribution) -->
+                            <td style="text-align:center;">
+                                <input type="number" step="0.01"
+                                       class="wi received"
+                                       th:attr="data-product=${product.productId},
+                                                data-well=${wellName}"
+                                       th:name="'received_' + ${product.productId} + '_' + ${wellName}"
+                                       th:value="${received != null ? received : 0}"
+                                       readonly tabindex="-1"/>
+                            </td>
+
+                            <!-- Closing — PRIMARY ENTRY -->
+                            <td style="text-align:center;">
+                                <input type="number" step="0.01" min="0"
+                                       class="wi closing"
+                                       th:attr="data-product=${product.productId},
+                                                data-well=${wellName},
+                                                data-price=${sp}"
+                                       th:name="'closing_' + ${product.productId} + '_' + ${wellName}"
+                                       value="0" placeholder="0"/>
+                            </td>
+
+                            <!-- Consumed (auto-calculated, shown as pill) -->
+                            <td style="text-align:center;">
+                                <span class="cpill"
+                                      th:id="'cp_' + ${product.productId} + '_' + ${wellName}">0</span>
+                                <!-- Hidden input submitted with form -->
+                                <input type="hidden"
+                                       class="chid"
+                                       th:attr="data-product=${product.productId},
+                                                data-well=${wellName}"
+                                       th:name="'consumed_' + ${product.productId} + '_' + ${wellName}"
+                                       value="0"/>
+                            </td>
+
+                            <!-- Selling price -->
+                            <td style="text-align:right;">
+                                <span th:if="${sp != null}"  class="ptag"    th:text="'₹' + ${sp}"></span>
+                                <span th:if="${sp == null}"  class="ptag na">N/A</span>
+                            </td>
+
+                            <!-- Estimated sale -->
+                            <td style="text-align:right;">
+                                <span class="sval zero"
+                                      th:id="'sv_' + ${product.productId} + '_' + ${wellName}">₹0</span>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+        </div>
+        </th:block>
+
+    </th:block>
+
+    <div th:if="${products == null or #lists.isEmpty(products)}" class="empty-state">
+        <i class="bi bi-cup-straw" style="font-size:2rem;display:block;margin-bottom:10px;"></i>
+        No products with stock found for this session.
     </div>
 
-    <div class="card shadow">
-        <div class="card-header bg-success text-white d-flex justify-content-between">
-            <h5 class="mb-0">
-                <i class="bi bi-3-circle"></i> Stage 3: Well Inventory
-            </h5>
-            <div>
-                <span class="badge bg-warning text-dark me-1">
-                    <i class="bi bi-square-fill"></i> Pre-filled from previous session
-                </span>
-                <span class="badge bg-secondary">
-                    <i class="bi bi-lock"></i> Received locked
-                </span>
-            </div>
+</div>
+</form>
+
+<!-- ACTION BAR -->
+<div class="abar">
+    <div class="fstats">
+        <div class="fs">
+            <div class="fl">Products</div>
+            <div class="fv" id="fProds">0</div>
         </div>
-        <div class="card-body">
-
-            <form id="wellForm"
-                  th:action="@{/sessions/wells/{id}/save(id=${sessionId})}"
-                  method="post">
-
-                <div class="table-responsive">
-                    <table class="table table-bordered align-middle">
-                        <thead class="table-dark">
-                            <tr>
-                                <th>Product</th>
-                                <th>Well</th>
-                                <th>Opening Stock
-                                    <small class="d-block fw-normal opacity-75">
-                                        ← prev. closing
-                                    </small>
-                                </th>
-                                <th>Received
-                                    <small class="d-block fw-normal opacity-75">
-                                        ← distribution
-                                    </small>
-                                </th>
-                                <th>Closing Stock</th>
-                                <th class="consumed-cell">Consumed</th>
-                                <th>Selling Price</th>
-                                <th>Note</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <th:block th:each="product : ${products}">
-                                <tr th:each="wellName : ${wellNames}"
-                                    th:with="
-                                        distKey=${product.productId + '_' + wellName},
-                                        received=${distributionMap != null
-                                                   ? distributionMap[product.productId + '_' + wellName]
-                                                   : null},
-                                        prevClose=${previousClosing != null
-                                                    and previousClosing[product.productId + '_' + wellName] != null
-                                                    ? previousClosing[product.productId + '_' + wellName]
-                                                    : 0},
-                                        hasReceived=${received != null and received > 0},
-                                        hasPrevClose=${prevClose != null and prevClose > 0}">
-
-                                    <!--
-                                        ✅ SHOW ROW IF:
-                                        - received stock from distribution today  (hasReceived)
-                                        - OR had closing stock in previous session (hasPrevClose)
-                                        HIDE ROW ONLY IF: brand was never used in this bar at this well
-                                    -->
-                                    <th:block th:if="${hasReceived or hasPrevClose}">
-
-                                        <td>
-                                            <strong th:text="${product.productName}"></strong><br>
-                                            <small class="text-muted"
-                                                   th:text="${product.brand}"></small>
-                                        </td>
-
-                                        <td>
-                                            <span class="badge bg-secondary"
-                                                  th:text="${wellName}"></span>
-                                        </td>
-
-                                        <!-- Opening - pre-filled from previous closing -->
-                                        <td>
-                                            <input type="number" step="0.01" min="0"
-                                                   class="form-control table-input opening"
-                                                   th:classappend="${hasPrevClose} ? ' prefilled'"
-                                                   th:name="'opening_' + ${product.productId}
-                                                             + '_' + ${wellName}"
-                                                   th:value="${prevClose}"/>
-                                            <small th:if="${hasPrevClose}"
-                                                   class="text-success fw-bold">
-                                                ↑ prev closing
-                                            </small>
-                                        </td>
-
-                                        <!-- Received - locked, 0 if not distributed today -->
-                                        <td class="received-cell">
-                                            <input type="number" step="0.01"
-                                                   class="form-control table-input received"
-                                                   th:name="'received_' + ${product.productId}
-                                                             + '_' + ${wellName}"
-                                                   th:value="${received != null ? received : 0}"
-                                                   readonly
-                                                   style="background-color:#e9ecef;
-                                                          font-weight:bold;"/>
-                                            <small th:if="${!hasReceived}"
-                                                   class="text-muted">no restock today</small>
-                                        </td>
-
-                                        <!-- Closing -->
-                                        <td>
-                                            <input type="number" step="0.01" min="0"
-                                                   class="form-control table-input closing"
-                                                   th:name="'closing_' + ${product.productId}
-                                                             + '_' + ${wellName}"
-                                                   value="0"/>
-                                        </td>
-
-                                        <!-- Consumed - auto calculated -->
-                                        <td class="consumed-cell">
-                                            <input type="number" step="0.01"
-                                                   class="form-control table-input consumed"
-                                                   th:name="'consumed_' + ${product.productId}
-                                                             + '_' + ${wellName}"
-                                                   value="0" readonly/>
-                                        </td>
-
-                                        <!-- Selling Price -->
-                                        <td>
-                                            <span th:text="${prices[product.productId] != null
-                                                             ? prices[product.productId].sellingPrice
-                                                             : 'N/A'}">
-                                            </span>
-                                        </td>
-
-                                        <!-- Note column -->
-                                        <td>
-                                            <span th:if="${hasReceived and hasPrevClose}"
-                                                  class="badge bg-success">
-                                                Restocked
-                                            </span>
-                                            <span th:if="${hasPrevClose and !hasReceived}"
-                                                  class="badge bg-warning text-dark">
-                                                Carry Forward
-                                            </span>
-                                            <span th:if="${hasReceived and !hasPrevClose}"
-                                                  class="badge bg-info text-dark">
-                                                New Stock
-                                            </span>
-                                        </td>
-
-                                    </th:block>
-                                </tr>
-                            </th:block>
-                        </tbody>
-                    </table>
-                </div>
-
-                <div class="d-flex justify-content-between mt-4">
-                    <a th:href="@{/sessions/distribution/{id}(id=${sessionId})}"
-                       class="btn btn-secondary">
-                        <i class="bi bi-arrow-left"></i> Back to Distribution
-                    </a>
-                    <button type="button"
-                            onclick="saveAndCommit()"
-                            class="btn btn-success btn-lg">
-                        <i class="bi bi-check-circle"></i> Save &amp; Commit Session
-                    </button>
-                </div>
-
-            </form>
+        <div class="fs amber">
+            <div class="fl">Received</div>
+            <div class="fv" id="fRecv">0.00</div>
         </div>
+        <div class="fs green">
+            <div class="fl">Consumed</div>
+            <div class="fv" id="fCons">0.00</div>
+        </div>
+        <div class="fs blue">
+            <div class="fl">Est. Revenue</div>
+            <div class="fv" id="fRev">₹0</div>
+        </div>
+    </div>
+    <div class="fbtns">
+        <a th:href="@{/sessions/distribution/{id}(id=${sessionId})}" class="btn-back">
+            <i class="bi bi-arrow-left"></i> Back
+        </a>
+        <button type="button" class="btn-commit" id="commitBtn" onclick="saveAndCommit()">
+            <i class="bi bi-check-circle-fill"></i> Commit Session
+        </button>
     </div>
 </div>
 
 <script th:inline="javascript">
-    const sessionId = [[${sessionId}]];
-    const barId     = [[${barId}]];
+    /*[# th:inline="javascript"]*/
+    const sessionId  = [[${sessionId}]];
+    const barId      = [[${barId}]];
+    /*[/]*/
+    const csrfToken  = document.querySelector('meta[name="_csrf"]').content;
+    const csrfHeader = document.querySelector('meta[name="_csrf_header"]').content;
 
-    // Auto-calculate consumed for every visible row
-    document.querySelectorAll("tbody tr").forEach(row => {
-        const opening  = row.querySelector(".opening");
-        const received = row.querySelector(".received");
-        const closing  = row.querySelector(".closing");
-        const consumed = row.querySelector(".consumed");
+    // ── Recalculate one well row ──
+    function recalcRow(pid, well) {
+        const o = parseFloat(document.querySelector(`.opening[data-product="${pid}"][data-well="${well}"]`)?.value)  || 0;
+        const r = parseFloat(document.querySelector(`.received[data-product="${pid}"][data-well="${well}"]`)?.value) || 0;
+        const c = parseFloat(document.querySelector(`.closing[data-product="${pid}"][data-well="${well}"]`)?.value)  || 0;
+        const price = parseFloat(document.querySelector(`.closing[data-product="${pid}"][data-well="${well}"]`)?.dataset.price) || 0;
 
-        if (opening && received && closing && consumed) {
-            function calculate() {
-                const o = parseFloat(opening.value)  || 0;
-                const r = parseFloat(received.value) || 0;
-                const c = parseFloat(closing.value)  || 0;
-                const result = o + r - c;
-                consumed.value = result >= 0 ? result.toFixed(2) : "0.00";
-            }
-            calculate(); // run on load with pre-filled values
-            opening.addEventListener("input",  calculate);
-            received.addEventListener("input", calculate);
-            closing.addEventListener("input",  calculate);
+        const consumed = o + r - c;
+        const cc = Math.max(0, consumed);
+        const sale = cc * price;
+
+        // Pill display
+        const pill = document.getElementById(`cp_${pid}_${well}`);
+        if (pill) {
+            pill.textContent = cc.toFixed(2);
+            pill.className = 'cpill' + (consumed < 0 ? ' neg' : cc > 0 ? ' pos' : '');
         }
+
+        // Hidden input
+        const hid = document.querySelector(`.chid[data-product="${pid}"][data-well="${well}"]`);
+        if (hid) hid.value = cc.toFixed(2);
+
+        // Sale display
+        const sv = document.getElementById(`sv_${pid}_${well}`);
+        if (sv) {
+            sv.textContent = '₹' + sale.toFixed(0);
+            sv.className = 'sval' + (sale > 0 ? '' : ' zero');
+        }
+
+        updateTileAgg(pid);
+        updateFooter();
+    }
+
+    // ── Tile aggregate badges ──
+    function updateTileAgg(pid) {
+        let totR = 0, totC = 0, totS = 0;
+        document.querySelectorAll(`.received[data-product="${pid}"]`).forEach(e => totR += parseFloat(e.value)||0);
+        document.querySelectorAll(`.chid[data-product="${pid}"]`).forEach(e => totC += parseFloat(e.value)||0);
+        document.querySelectorAll(`.closing[data-product="${pid}"]`).forEach(e => {
+            const w = e.dataset.well;
+            const pr = parseFloat(e.dataset.price)||0;
+            const o  = parseFloat(document.querySelector(`.opening[data-product="${pid}"][data-well="${w}"]`)?.value)||0;
+            const rv = parseFloat(document.querySelector(`.received[data-product="${pid}"][data-well="${w}"]`)?.value)||0;
+            totS += Math.max(0, o + rv - (parseFloat(e.value)||0)) * pr;
+        });
+        const ra = document.querySelector(`.r-agg[data-product="${pid}"]`);
+        const ca = document.querySelector(`.c-agg[data-product="${pid}"]`);
+        const sa = document.querySelector(`.s-agg[data-product="${pid}"]`);
+        if (ra) ra.textContent = totR.toFixed(2);
+        if (ca) ca.textContent = totC.toFixed(2);
+        if (sa) sa.textContent = '₹' + totS.toFixed(0);
+    }
+
+    // ── Footer totals ──
+    function updateFooter() {
+        let totR = 0, totC = 0, totRev = 0;
+        const pids = new Set();
+        document.querySelectorAll('.received').forEach(e => { totR += parseFloat(e.value)||0; pids.add(e.dataset.product); });
+        document.querySelectorAll('.chid').forEach(e => totC += parseFloat(e.value)||0);
+        document.querySelectorAll('.closing').forEach(e => {
+            const w = e.dataset.well, p = e.dataset.product, pr = parseFloat(e.dataset.price)||0;
+            const o  = parseFloat(document.querySelector(`.opening[data-product="${p}"][data-well="${w}"]`)?.value)||0;
+            const rv = parseFloat(document.querySelector(`.received[data-product="${p}"][data-well="${w}"]`)?.value)||0;
+            totRev += Math.max(0, o + rv - (parseFloat(e.value)||0)) * pr;
+        });
+        document.getElementById('fProds').textContent = pids.size;
+        document.getElementById('fRecv').textContent  = totR.toFixed(2);
+        document.getElementById('fCons').textContent  = totC.toFixed(2);
+        document.getElementById('fRev').textContent   = '₹' + totRev.toFixed(0);
+    }
+
+    // ── Attach listeners ──
+    document.querySelectorAll('.opening, .closing').forEach(input => {
+        input.addEventListener('input', () => recalcRow(input.dataset.product, input.dataset.well));
     });
 
-    function saveAndCommit() {
-        const form       = document.getElementById("wellForm");
-        const formData   = new FormData(form);
-        const errorDiv   = document.getElementById("errorMsg");
-        const successDiv = document.getElementById("successMsg");
+    // ── Enter key: move to next closing field ──
+    const allClosing = [...document.querySelectorAll('.closing')];
+    allClosing.forEach((inp, idx) => {
+        inp.addEventListener('keydown', e => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const next = allClosing[idx + 1];
+                if (next) { next.focus(); next.scrollIntoView({ behavior:'smooth', block:'center' }); }
+            }
+        });
+    });
 
-        errorDiv.style.display   = "none";
-        successDiv.style.display = "none";
+    // ── Save wells then commit session ──
+    function saveAndCommit() {
+        const btn   = document.getElementById('commitBtn');
+        const errEl = document.getElementById('alertErr');
+        const okEl  = document.getElementById('alertOk');
+        errEl.classList.remove('show'); okEl.classList.remove('show');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Saving…';
+
+        const formData = new FormData(document.getElementById('wellForm'));
 
         fetch(`/sessions/wells/${sessionId}/save`, {
-            method: "POST",
+            method: 'POST',
+            headers: { [csrfHeader]: csrfToken },
             body: new URLSearchParams(formData)
         })
-        .then(res => {
-            if (!res.ok) return res.text().then(t => { throw new Error(t); });
-            return res;
-        })
-        .then(() => fetch(`/api/sessions/${sessionId}/commit`, { method: "POST" }))
-        .then(res => {
-            if (!res.ok) return res.text().then(t => { throw new Error(t); });
-            return res;
-        })
+        .then(res => { if (!res.ok) return res.text().then(t => { throw new Error(t); }); })
+        .then(() => fetch(`/api/sessions/${sessionId}/commit`, {
+            method: 'POST',
+            headers: { [csrfHeader]: csrfToken }
+        }))
+        .then(res => { if (!res.ok) return res.text().then(t => { throw new Error(t); }); })
         .then(() => {
-            successDiv.textContent   = "Session committed! Redirecting...";
-            successDiv.style.display = "block";
+            document.getElementById('alertOkMsg').textContent = 'Session committed! Redirecting…';
+            okEl.classList.add('show');
+            btn.innerHTML = '<i class="bi bi-check2-circle"></i> Done!';
             setTimeout(() => window.location.href = `/sessions/${barId}`, 1500);
         })
         .catch(err => {
-            errorDiv.textContent   = "Error: " + err.message;
-            errorDiv.style.display = "block";
+            let msg = err.message;
+            try { const j = JSON.parse(msg); msg = j.error || j.message || msg; } catch(_) {}
+            document.getElementById('alertErrMsg').textContent = msg;
+            errEl.classList.add('show');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-check-circle-fill"></i> Commit Session';
+            errEl.scrollIntoView({ behavior:'smooth', block:'nearest' });
         });
     }
+
+    // ── Init: run recalc for all pre-filled opening rows ──
+    document.querySelectorAll('.opening').forEach(i => {
+        if (parseFloat(i.value) > 0) recalcRow(i.dataset.product, i.dataset.well);
+    });
+    updateFooter();
 </script>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>

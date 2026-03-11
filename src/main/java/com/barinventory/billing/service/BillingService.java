@@ -7,6 +7,7 @@ import com.barinventory.billing.dtos.BrandBillingDTO;
 import com.barinventory.billing.dtos.BrandDTO;
 import com.barinventory.billing.dtos.BrandSizeDTO;
 import com.barinventory.billing.dtos.CreateBillRequest;
+import com.barinventory.billing.entity.Bill;
 import com.barinventory.brands.entity.Brand;
 import com.barinventory.brands.entity.BrandSize;
 
@@ -38,5 +39,7 @@ public interface BillingService {
     public void deactivateSize(Long sizeId);
     
     List<BrandSize> getAllSizes();
+    Bill findById(Long id);
+    Bill getBill(Long id);
     
 }
