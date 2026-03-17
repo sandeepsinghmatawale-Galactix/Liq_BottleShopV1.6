@@ -38,4 +38,12 @@ public interface BrandRepository extends JpaRepository<Brand, Long> {
     		""")
     		List<Brand> findAllActiveWithActiveSizes();
     
+    @Query("""
+    	       SELECT DISTINCT b FROM Brand b
+    	       LEFT JOIN FETCH b.sizes s
+    	       WHERE b.active = true AND (s IS NULL OR s.active = true)
+    	       ORDER BY b.brandName
+    	       """)
+    	List<Brand> findAllActiveWithSizes();
+    
 }

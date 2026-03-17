@@ -20,6 +20,7 @@ public class InvoiceViewController {
     public String invoiceList(Model model) {
         model.addAttribute("activePage", "invoices"); // ⭐ important for UI
         model.addAttribute("invoices", invoiceService.getAllInvoices());
+        
         model.addAttribute("pendingCount", invoiceService.getPendingInvoices().size());
         return "invoices/invoice-list";
     }

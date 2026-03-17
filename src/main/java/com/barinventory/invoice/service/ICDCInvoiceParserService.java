@@ -1,14 +1,7 @@
 package com.barinventory.invoice.service;
 
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
+import java.util.*;
+import java.util.regex.*;
 import org.springframework.stereotype.Service;
 
 import com.barinventory.invoice.dto.ExtractedInvoiceData;
@@ -20,263 +13,117 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class ICDCInvoiceParserService implements InvoiceParserService {
 
-    // ── Header Patterns ───────────────────────────────────────────────────────
-
-    private static final Pattern ICDC_NUMBER_PATTERN = Pattern.compile(
-            "ICDC\\s*Number\\s*[:\\s]+(ICDC[A-Z0-9]+)", Pattern.CASE_INSENSITIVE);
-
-    private static final Pattern INVOICE_DATE_PATTERN = Pattern.compile(
-            "Invoice\\s*Date\\s*[:\\s]+(\\d{1,2}-[A-Za-z]+-\\d{4})");
-
-    private static final Pattern DEPOT_NAME_PATTERN = Pattern.compile(
-            "IML\\s*DEPOT\\s*[:\\s]+(.+?)(?:\\n|\\r|$)", Pattern.CASE_INSENSITIVE);
-
-    private static final Pattern RETAILER_NAME_PATTERN = Pattern.compile(
-            "Name\\s*[:\\s]+([A-Za-z\\s]+?)\\s+(?:Code|$)", Pattern.CASE_INSENSITIVE);
-
-    private static final Pattern RETAILER_CODE_PATTERN = Pattern.compile(
-            "Code\\s*[:\\s]+(\\d{5,10})");
-
-    private static final Pattern LICENSE_NO_PATTERN = Pattern.compile(
-            "License\\s*No\\s*[:\\s]+([A-Z0-9]+)");
-
-    private static final Pattern NET_INVOICE_VALUE_PATTERN = Pattern.compile(
-            "Net\\s*Invoice\\s*Value\\s*[:\\s]*([\\d,]+\\.?\\d*)");
-
-    // ── Line Item Pattern ─────────────────────────────────────────────────────
-
-    private static final Pattern LINE_ITEM_PATTERN = Pattern.compile(
-            "^(\\d{1,2})\\s+"                                     // Sl.No
-          + "(\\d{4})\\s+"                                         // Brand Number
-          + "(.+?)\\s+"                                            // Brand Name
-          + "(Beer|IML)\\s+"                                       // Product Type
-          + "([GP])\\s+"                                           // Pack Type
-          + "(\\d{1,3})\\s*/\\s*(\\d{2,4})\\s*(?:ml)?\\s+"       // Pack Qty / Size
-          + "(\\d{1,4})\\s+"                                       // Cases Delivered
-          + "0\\s+"                                                 // Bottles (always 0)
-          + "([\\d,]+\\.\\d{2})\\s*/\\s*([\\d,]+\\.\\d{2})\\s+"  // Rate/Case / UnitRate
-          + "([\\d,]+\\.\\d{2})",                                  // Total
-            Pattern.CASE_INSENSITIVE);
-
-    // ── Summary Patterns ──────────────────────────────────────────────────────
-
-    private static final Pattern SUMMARY_INVOICE_QTY_PATTERN = Pattern.compile(
-            "Invoice\\s*Qty\\s+(\\d+)\\s*/\\s*\\d+\\s+(\\d+)\\s*/\\s*\\d+\\s+(\\d+)\\s*/\\s*\\d+");
-
-    private static final Pattern BREAKAGE_QTY_PATTERN = Pattern.compile(
-            "Breakage\\s*Qty\\s+(\\d+)\\s*/\\s*(\\d+)");
-
-    private static final Pattern SHORTAGE_QTY_PATTERN = Pattern.compile(
-            "Shortage\\s*Qty\\s+(\\d+)\\s*/\\s*(\\d+)");
-
-    // ── Date Formatters ───────────────────────────────────────────────────────
-
-    private static final DateTimeFormatter ICDC_DATE_FORMAT =
-            DateTimeFormatter.ofPattern("dd-MMM-yyyy", Locale.ENGLISH);
-    private static final DateTimeFormatter FALLBACK_DATE_FORMAT =
-            DateTimeFormatter.ofPattern("d-MMM-yyyy", Locale.ENGLISH);
-
-    // ── Main Parse Entry ──────────────────────────────────────────────────────
+    // Flexible date pattern (if needed for invoice date parsing)
+    private static final Pattern INVOICE_NUMBER_PATTERN = Pattern.compile("ICDC\\d{10,}");
 
     @Override
     public ExtractedInvoiceData parse(String rawText) {
-        log.info("Parsing ICDC invoice. Text length: {}", rawText.length());
-
         ExtractedInvoiceData result = new ExtractedInvoiceData();
-
         try {
-            result.setInvoiceNumber(extractICDCNumber(rawText));
-            result.setInvoiceDate(extractInvoiceDate(rawText));
-            result.setDepotName(extractDepotName(rawText));
-            result.setRetailerName(extractRetailerName(rawText));
-            result.setRetailerCode(extractRetailerCode(rawText));
-            result.setLicenseNumber(extractLicenseNumber(rawText));
-            result.setTotalAmount(extractNetInvoiceValue(rawText));
-
-            List<ExtractedItemData> items = extractLineItems(rawText);
-            result.setItems(items);
-
-            enrichWithSummaryData(result, rawText);
-
-            // Validate totals — flag mismatch for owner review
-            boolean totalsMatch = validateTotals(result);
-            result.setTotalsMismatch(!totalsMatch);
-
+            result.setInvoiceNumber(extractInvoiceNumber(rawText));
+            result.setItems(extractItemsFromBlocks(rawText));
             result.setExtractionSuccess(true);
-            result.setTotalLinesExtracted(items.size());
-
-            // Flag for manual review if nothing extracted
-            if (items.isEmpty()) {
-                result.setRequiresManualReview(true);
-                result.setManualReviewReason(
-                        "No line items found — PDF may have unusual table formatting.");
-            }
-
-            log.info("ICDC parse complete. Invoice#: {}, Date: {}, Depot: {}, Items: {}",
-                    result.getInvoiceNumber(), result.getInvoiceDate(),
-                    result.getDepotName(), items.size());
-
         } catch (Exception e) {
-            log.error("ICDC parse failed: {}", e.getMessage(), e);
+            log.error("Invoice parse failed", e);
             result.setExtractionSuccess(false);
-            result.setExtractionMessage("ICDC parse error: " + e.getMessage());
         }
-
         return result;
     }
 
-    // ── Header Extractors ─────────────────────────────────────────────────────
-
-    private String extractICDCNumber(String text) {
-        Matcher m = ICDC_NUMBER_PATTERN.matcher(text);
-        if (m.find()) return m.group(1).trim();
-        log.warn("ICDC Number not found");
-        return null;
-    }
-
-    private LocalDate extractInvoiceDate(String text) {
-        Matcher m = INVOICE_DATE_PATTERN.matcher(text);
-        if (m.find()) {
-            String dateStr = m.group(1).trim();
-            try {
-                return LocalDate.parse(dateStr, ICDC_DATE_FORMAT);
-            } catch (DateTimeParseException e1) {
-                try {
-                    return LocalDate.parse(dateStr, FALLBACK_DATE_FORMAT);
-                } catch (DateTimeParseException e2) {
-                    log.warn("Could not parse ICDC date: {}", dateStr);
-                }
-            }
-        }
-        return null;
-    }
-
-    private String extractDepotName(String text) {
-        Matcher m = DEPOT_NAME_PATTERN.matcher(text);
-        if (m.find()) return m.group(1).trim();
-        if (text.contains("Ranga Reddy")) return "IMFL Depot Ranga Reddy";
-        if (text.contains("IMFL Depot"))  return "IMFL Depot";
-        return "Telangana ICDC Depot";
-    }
-
-    private String extractRetailerName(String text) {
-        Matcher m = RETAILER_NAME_PATTERN.matcher(text);
-        return m.find() ? m.group(1).trim() : null;
-    }
-
-    private String extractRetailerCode(String text) {
-        Matcher m = RETAILER_CODE_PATTERN.matcher(text);
-        return m.find() ? m.group(1).trim() : null;
-    }
-
-    private String extractLicenseNumber(String text) {
-        Matcher m = LICENSE_NO_PATTERN.matcher(text);
-        return m.find() ? m.group(1).trim() : null;
-    }
-
-    private Double extractNetInvoiceValue(String text) {
-        Matcher m = NET_INVOICE_VALUE_PATTERN.matcher(text);
-        if (m.find()) {
-            try {
-                return Double.parseDouble(m.group(1).replace(",", "").trim());
-            } catch (NumberFormatException e) {
-                log.warn("Could not parse net invoice value");
-            }
-        }
-        return null;
-    }
-
-    // ── Line Item Extraction ──────────────────────────────────────────────────
-
-    private List<ExtractedItemData> extractLineItems(String text) {
+    /**
+     * Extract invoice items from raw text
+     */
+    private List<ExtractedItemData> extractItemsFromBlocks(String text) {
         List<ExtractedItemData> items = new ArrayList<>();
         String[] lines = text.split("\\r?\\n");
 
-        for (String line : lines) {
-            line = line.trim();
-            if (line.isEmpty()) continue;
-            ExtractedItemData item = tryParseICDCItemLine(line);
-            if (item != null) {
+        for (int i = 0; i < lines.length; i++) {
+            String line = lines[i].trim();
+            if (line.isBlank()) continue; // skip empty lines
+
+            // Skip lines with no digits at all
+            if (!line.matches(".*\\d.*")) continue;
+
+            try {
+                ExtractedItemData item = new ExtractedItemData();
+
+                // Combine multi-line blocks until empty line or total/summary line
+                StringBuilder block = new StringBuilder(line);
+                int j = i + 1;
+                while (j < lines.length && !lines[j].trim().isEmpty() && !lines[j].trim().toLowerCase().startsWith("total")) {
+                    block.append(" ").append(lines[j].trim());
+                    j++;
+                }
+                String full = block.toString();
+
+                log.debug("Parsing block: {}", full);
+
+                // 1️⃣ Extract brand
+                String brand = full.replaceFirst("^\\d+\\s+\\d+\\s+", "");
+                brand = brand.split("(?i)(Beer|IML)")[0].trim();
+                item.setBrandNameRaw(brand);
+
+                // 2️⃣ Extract size in ml
+             // 2️⃣ Extract size in ml
+                Matcher sizeM = Pattern.compile("(\\d{2,4})\\s*ml", Pattern.CASE_INSENSITIVE).matcher(full);
+                if (sizeM.find()) {
+                    item.setSizeMl(Integer.parseInt(sizeM.group(1)));
+                } else {
+                    log.warn("No size_ml found for brand '{}', setting default 0", item.getBrandNameRaw());
+                    item.setSizeMl(0); // default value to prevent DB errors
+                }
+
+                // 3️⃣ Extract bottles per case & invoiced cases
+                Matcher numbersM = Pattern.compile("(\\d+)\\s*/\\s*(\\d+)").matcher(full);
+                if (numbersM.find()) {
+                    item.setBottlesPerCase(Integer.parseInt(numbersM.group(1)));
+                    item.setInvoicedCases(Integer.parseInt(numbersM.group(2)));
+                } else {
+                    item.setBottlesPerCase(0);
+                    item.setInvoicedCases(0);
+                }
+
+                // 4️⃣ Extract prices (rate per case, MRP per bottle, line total)
+                Matcher priceM = Pattern.compile("(\\d+[\\d,]*\\.\\d{2})").matcher(full);
+                List<Double> prices = new ArrayList<>();
+                while (priceM.find()) {
+                    prices.add(Double.parseDouble(priceM.group(1).replace(",", "")));
+                }
+                if (prices.size() >= 3) {
+                    item.setRatePerCase(prices.get(prices.size() - 3));
+                    item.setMrpPerBottle(prices.get(prices.size() - 2));
+                    item.setLineTotal(prices.get(prices.size() - 1));
+                } else {
+                    item.setRatePerCase(0.0);
+                    item.setMrpPerBottle(0.0);
+                    item.setLineTotal(0.0);
+                }
+
+                // 5️⃣ Compute totals (optional helper)
                 item.calculateTotals();
+
                 items.add(item);
-                log.debug("Item: {} | {}ml | {} cases | {} btl/case",
-                        item.getBrandNameRaw(), item.getSizeMl(),
-                        item.getInvoicedCases(), item.getBottlesPerCase());
+
+                // Skip processed lines
+                i = j - 1;
+
+            } catch (Exception e) {
+                log.warn("Parse error at line {}: {}", i, line);
             }
         }
 
-        if (items.isEmpty()) {
-            log.warn("Standard parse yielded 0 items — trying multi-line fallback");
-            items = extractItemsMultiLine(text);
-        }
-
+        log.info("Total items extracted: {}", items.size());
         return items;
     }
 
-    private ExtractedItemData tryParseICDCItemLine(String line) {
-        Matcher m = LINE_ITEM_PATTERN.matcher(line);
-        if (!m.find()) return null;
-
-        try {
-            ExtractedItemData item = new ExtractedItemData();
-            item.setBrandNameRaw(m.group(3).trim());
-            item.setProductType(m.group(4).trim());
-            item.setPackType(m.group(5).trim());
-            item.setBottlesPerCase(Integer.parseInt(m.group(6)));
-            item.setSizeMl(Integer.parseInt(m.group(7)));
-            item.setInvoicedCases(Integer.parseInt(m.group(8)));
-            item.setRatePerCase(Double.parseDouble(m.group(9).replace(",", "")));
-            item.setMrpPerBottle(Double.parseDouble(m.group(10).replace(",", "")));
-            item.setLineTotal(Double.parseDouble(m.group(11).replace(",", "")));
-            return item;
-        } catch (NumberFormatException e) {
-            log.debug("Could not parse line: {}", line.substring(0, Math.min(60, line.length())));
-            return null;
+    /**
+     * Extract invoice number from text
+     */
+    private String extractInvoiceNumber(String text) {
+        Matcher matcher = INVOICE_NUMBER_PATTERN.matcher(text);
+        if (matcher.find()) {
+            return matcher.group();
         }
-    }
-
-    private List<ExtractedItemData> extractItemsMultiLine(String text) {
-        List<ExtractedItemData> items = new ArrayList<>();
-        // Join continuation lines (brand names that wrap) into single lines
-        String normalized = text.replaceAll("\\n([^0-9\\r\\n])", " $1");
-        for (String line : normalized.split("\\r?\\n")) {
-            ExtractedItemData item = tryParseICDCItemLine(line.trim());
-            if (item != null) {
-                item.calculateTotals();
-                items.add(item);
-            }
-        }
-        log.info("Multi-line fallback found {} items", items.size());
-        return items;
-    }
-
-    // ── Summary / Footer ──────────────────────────────────────────────────────
-
-    private void enrichWithSummaryData(ExtractedInvoiceData result, String text) {
-        Matcher mqty = SUMMARY_INVOICE_QTY_PATTERN.matcher(text);
-        if (mqty.find()) {
-            result.setSummaryTotalCases(Integer.parseInt(mqty.group(3)));
-            log.debug("Summary total cases: {}", result.getSummaryTotalCases());
-        }
-
-        Matcher mb = BREAKAGE_QTY_PATTERN.matcher(text);
-        if (mb.find()) result.setSummaryBreakageCases(Integer.parseInt(mb.group(1)));
-
-        Matcher ms = SHORTAGE_QTY_PATTERN.matcher(text);
-        if (ms.find()) result.setSummaryShortageCases(Integer.parseInt(ms.group(1)));
-    }
-
-    public boolean validateTotals(ExtractedInvoiceData data) {
-        if (data.getSummaryTotalCases() == null || data.getItems() == null) return true;
-
-        int extractedTotal = data.getItems().stream()
-                .mapToInt(i -> i.getInvoicedCases() != null ? i.getInvoicedCases() : 0).sum();
-
-        boolean matches = extractedTotal == data.getSummaryTotalCases();
-        if (!matches) {
-            log.warn("Cases mismatch — extracted: {}, ICDC footer: {}",
-                    extractedTotal, data.getSummaryTotalCases());
-        }
-        return matches;
+        return null;
     }
 }

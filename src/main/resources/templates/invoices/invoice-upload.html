@@ -4,11 +4,14 @@
     <meta charset="UTF-8">
     <title>Upload Invoice</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
+
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+
     <style>
         body { background-color: #f4f6fb; }
         .navbar { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+
         .upload-zone {
             border: 2px dashed #a18cd1;
             border-radius: 16px;
@@ -17,316 +20,232 @@
             transition: all 0.3s;
             min-height: 180px;
         }
+
         .upload-zone:hover, .upload-zone.dragover {
             border-color: #764ba2;
             background: #f3e8ff;
         }
+
         .upload-zone.has-files {
             border-color: #198754;
             background: #f0fff4;
         }
+
         .file-chip {
             background: #e8d5f5;
             border-radius: 20px;
             padding: 4px 12px;
             font-size: 0.82rem;
-            color: #2d1a4b;
         }
-        .step-badge {
-            width: 28px; height: 28px;
-            background: linear-gradient(135deg,#a18cd1,#764ba2);
-            color: white;
-            border-radius: 50%;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 700;
-            font-size: 0.85rem;
-        }
-        #uploadProgress { display: none; }
+
         #extractingSpinner { display: none; }
     </style>
 </head>
 <body>
 
-<!-- Navbar -->
-<nav class="navbar navbar-dark navbar-expand-lg shadow-sm">
+<nav class="navbar navbar-dark shadow-sm">
     <div class="container-fluid">
-        <a class="navbar-brand fw-bold" th:href="@{/dashboard}">
+        <span class="navbar-brand fw-bold">
             <i class="bi bi-shop-window"></i> Liquor Inventory
-        </a>
-        <div class="collapse navbar-collapse">
-            <ul class="navbar-nav me-auto ms-4">
-                <li class="nav-item">
-                    <a class="nav-link" th:href="@{/dashboard}">
-                        <i class="bi bi-speedometer2"></i> Dashboard
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link active" th:href="@{/invoices}">
-                        <i class="bi bi-file-earmark-text"></i> Invoices
-                    </a>
-                </li>
-            </ul>
-        </div>
+        </span>
     </div>
 </nav>
 
 <div class="container mt-4" style="max-width:700px;">
 
-    <!-- Breadcrumb -->
-    <nav aria-label="breadcrumb" class="mb-3">
-        <ol class="breadcrumb small">
-            <li class="breadcrumb-item">
-                <a th:href="@{/dashboard}" class="text-decoration-none">Dashboard</a>
-            </li>
-            <li class="breadcrumb-item">
-                <a th:href="@{/invoices}" class="text-decoration-none">Invoices</a>
-            </li>
-            <li class="breadcrumb-item active">Upload</li>
-        </ol>
-    </nav>
-
-    <!-- How it works -->
-    <div class="card shadow-sm mb-4" style="border-radius:12px; border:none;">
+    <div class="card shadow-sm mb-4">
         <div class="card-body">
-            <h6 class="fw-bold mb-3">
-                <i class="bi bi-info-circle text-primary"></i> How it works
-            </h6>
-            <div class="d-flex gap-3 flex-wrap">
-                <div class="d-flex align-items-start gap-2">
-                    <span class="step-badge flex-shrink-0">1</span>
-                    <span class="small">Upload ICDC invoice PDF(s)</span>
-                </div>
-                <div class="d-flex align-items-start gap-2">
-                    <span class="step-badge flex-shrink-0">2</span>
-                    <span class="small">System extracts data automatically</span>
-                </div>
-                <div class="d-flex align-items-start gap-2">
-                    <span class="step-badge flex-shrink-0">3</span>
-                    <span class="small">Review &amp; enter received quantities</span>
-                </div>
-                <div class="d-flex align-items-start gap-2">
-                    <span class="step-badge flex-shrink-0">4</span>
-                    <span class="small">Confirm → stock added to stockroom</span>
-                </div>
-            </div>
-        </div>
-    </div>
+            <h5 class="fw-bold mb-3">Upload Invoice PDF</h5>
 
-    <!-- Upload Card -->
-    <div class="card shadow-sm mb-4" style="border-radius:12px; border:none;">
-        <div class="card-body p-4">
-            <h5 class="fw-bold mb-4">
-                <i class="bi bi-upload text-primary"></i> Upload Invoice PDF
-            </h5>
-
-            <!-- Drop zone -->
-            <div class="upload-zone d-flex flex-column align-items-center
-                        justify-content-center p-4 mb-3 text-center"
+            <!-- Drop Zone -->
+            <div class="upload-zone d-flex flex-column align-items-center justify-content-center p-4 mb-3 text-center"
                  id="dropZone"
                  onclick="document.getElementById('pdfFiles').click()">
-                <i class="bi bi-file-earmark-pdf text-muted mb-2"
-                   style="font-size:3rem; color:#a18cd1 !important;"></i>
-                <p class="mb-1 fw-semibold" style="color:#764ba2;">
-                    Click to select or drag &amp; drop PDF(s) here
+
+                <i class="bi bi-file-earmark-pdf" style="font-size:3rem;"></i>
+
+                <p class="fw-semibold mt-2">
+                    Click or Drag & Drop PDF(s)
                 </p>
-                <p class="text-muted small mb-0">
-                    Supports multiple files • Max 10MB per file • ICDC format only
-                </p>
-                <input type="file" id="pdfFiles" accept=".pdf"
-                       multiple style="display:none;"
+
+                <input type="file" id="pdfFiles" accept=".pdf" multiple hidden
                        onchange="handleFileSelect(this)">
             </div>
 
-            <!-- Selected files list -->
-            <div id="fileList" class="mb-3" style="display:none;">
-                <div class="d-flex align-items-center gap-2 mb-2">
-                    <i class="bi bi-check-circle-fill text-success"></i>
-                    <span class="fw-semibold small" id="fileCount"></span>
-                    <button class="btn btn-link btn-sm text-danger p-0 ms-auto"
-                            onclick="clearFiles()">
-                        <i class="bi bi-x-circle"></i> Clear
-                    </button>
-                </div>
+            <!-- File List -->
+            <div id="fileList" style="display:none;">
+                <p id="fileCount"></p>
                 <div id="fileChips" class="d-flex flex-wrap gap-2"></div>
             </div>
 
-            <!-- Extracting spinner -->
-            <div id="extractingSpinner" class="text-center py-3">
-                <div class="spinner-border text-primary mb-2" role="status"></div>
-                <p class="text-muted small mb-0">
-                    Extracting invoice data... please wait
-                </p>
+            <!-- Spinner -->
+            <div id="extractingSpinner" class="text-center">
+                <div class="spinner-border text-primary"></div>
+                <p>Processing...</p>
             </div>
 
-            <!-- Upload button -->
-            <button class="btn btn-primary w-100 py-2 fw-semibold"
+            <!-- Button -->
+            <button class="btn btn-primary w-100 mt-3"
                     id="uploadBtn"
                     onclick="uploadInvoices()"
                     disabled>
-                <i class="bi bi-cloud-upload"></i>
-                <span id="uploadBtnText">Select files to upload</span>
+                Upload
             </button>
 
-            <!-- Error message -->
-            <div id="errorMsg" class="alert alert-danger mt-3 d-none" role="alert">
-                <i class="bi bi-exclamation-triangle"></i>
+            <!-- Error -->
+            <div id="errorMsg" class="alert alert-danger mt-3 d-none">
                 <span id="errorText"></span>
             </div>
 
         </div>
     </div>
-
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script th:inline="javascript">
-    /*[# th:if="${_csrf != null}"]*/
-    const csrfToken = /*[[${_csrf.token}]]*/ '';
-    const csrfHeader = /*[[${_csrf.headerName}]]*/ 'X-CSRF-TOKEN';
-    /*[/]*/
+/* CSRF */
+const csrfToken  = /*[[${_csrf.token}]]*/ '';
+const csrfHeader = /*[[${_csrf.headerName}]]*/ 'X-CSRF-TOKEN';
 
-    let selectedFiles = [];
+let selectedFiles = [];
 
-    // ── Drag & Drop ───────────────────────────────────────────────────────────
+/* Drag & Drop */
+const dropZone = document.getElementById('dropZone');
 
-    const dropZone = document.getElementById('dropZone');
+dropZone.addEventListener('dragover', e => {
+    e.preventDefault();
+    dropZone.classList.add('dragover');
+});
 
-    dropZone.addEventListener('dragover', e => {
-        e.preventDefault();
-        dropZone.classList.add('dragover');
+dropZone.addEventListener('dragleave', () => {
+    dropZone.classList.remove('dragover');
+});
+
+dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('dragover');
+
+    const files = Array.from(e.dataTransfer.files);
+    validateAndSetFiles(files);
+});
+
+/* File Select */
+function handleFileSelect(input) {
+    validateAndSetFiles(Array.from(input.files));
+}
+
+/* Validation */
+function validateAndSetFiles(files) {
+
+    const valid = files.filter(f => {
+        if (!f.name.toLowerCase().endsWith('.pdf')) {
+            showError("Only PDF files allowed");
+            return false;
+        }
+        if (f.size > 10 * 1024 * 1024) {
+            showError("Max file size 10MB exceeded");
+            return false;
+        }
+        return true;
     });
 
-    dropZone.addEventListener('dragleave', () => {
-        dropZone.classList.remove('dragover');
+    if (valid.length === 0) return;
+
+    selectedFiles = valid;
+    renderFiles();
+}
+
+/* Render */
+function renderFiles() {
+    const fileList = document.getElementById('fileList');
+    const fileChips = document.getElementById('fileChips');
+    const fileCount = document.getElementById('fileCount');
+
+    fileList.style.display = 'block';
+    fileCount.textContent = selectedFiles.length + " file(s) selected";
+
+    fileChips.innerHTML = '';
+
+    selectedFiles.forEach(f => {
+        const chip = document.createElement('span');
+        chip.className = 'file-chip';
+        chip.textContent = f.name;
+        fileChips.appendChild(chip);
     });
 
-    dropZone.addEventListener('drop', e => {
-        e.preventDefault();
-        dropZone.classList.remove('dragover');
-        const files = Array.from(e.dataTransfer.files)
-                           .filter(f => f.name.endsWith('.pdf'));
-        if (files.length > 0) setFiles(files);
-    });
+    document.getElementById('uploadBtn').disabled = false;
+}
 
-    // ── File Selection ────────────────────────────────────────────────────────
+/* Upload */
+async function uploadInvoices() {
 
-    function handleFileSelect(input) {
-        setFiles(Array.from(input.files));
-    }
+    if (selectedFiles.length === 0) return;
 
-    function setFiles(files) {
-        selectedFiles = files;
-        const fileList  = document.getElementById('fileList');
-        const fileChips = document.getElementById('fileChips');
-        const fileCount = document.getElementById('fileCount');
-        const uploadBtn = document.getElementById('uploadBtn');
-        const uploadBtnText = document.getElementById('uploadBtnText');
+    hideError();
 
-        fileList.style.display = 'block';
-        fileCount.textContent = files.length + ' file(s) selected';
-        fileChips.innerHTML = '';
+    const btn = document.getElementById('uploadBtn');
+    const spinner = document.getElementById('extractingSpinner');
 
-        files.forEach(f => {
-            const chip = document.createElement('span');
-            chip.className = 'file-chip';
-            chip.innerHTML = '<i class="bi bi-file-earmark-pdf"></i> ' + f.name;
-            fileChips.appendChild(chip);
+    btn.disabled = true;
+    spinner.style.display = 'block';
+
+    try {
+
+        let url = '';
+        let formData = new FormData();
+
+        if (selectedFiles.length === 1) {
+            url = '/api/invoices/upload';
+            formData.append('file', selectedFiles[0]);
+        } else {
+            url = '/api/invoices/upload/bulk';
+            selectedFiles.forEach(f => formData.append('files', f));
+        }
+
+        formData.append('uploadedBy', 'bar_owner');
+
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: csrfToken ? { [csrfHeader]: csrfToken } : {},
+            body: formData
         });
 
-        dropZone.classList.add('has-files');
-        uploadBtn.disabled = false;
-        uploadBtnText.textContent = files.length === 1
-            ? 'Extract Invoice Data'
-            : 'Extract ' + files.length + ' Invoices';
-    }
-
-    function clearFiles() {
-        selectedFiles = [];
-        document.getElementById('fileList').style.display = 'none';
-        document.getElementById('fileChips').innerHTML = '';
-        document.getElementById('pdfFiles').value = '';
-        document.getElementById('uploadBtn').disabled = true;
-        document.getElementById('uploadBtnText').textContent = 'Select files to upload';
-        dropZone.classList.remove('has-files');
-        hideError();
-    }
-
-    // ── Upload & Extract ──────────────────────────────────────────────────────
-
-    async function uploadInvoices() {
-        if (selectedFiles.length === 0) return;
-        hideError();
-
-        const uploadBtn  = document.getElementById('uploadBtn');
-        const spinner    = document.getElementById('extractingSpinner');
-
-        uploadBtn.disabled = true;
-        spinner.style.display = 'block';
-
-        try {
-            if (selectedFiles.length === 1) {
-                // Single upload
-                const formData = new FormData();
-                formData.append('file', selectedFiles[0]);
-                formData.append('uploadedBy', 'bar_owner');
-
-                const response = await fetch('/api/invoices/upload', {
-                    method: 'POST',
-                    headers: { [csrfHeader]: csrfToken },
-                    body: formData
-                });
-
-                const result = await response.json();
-
-                if (result.success && result.data) {
-                    // Redirect to review screen
-                    window.location.href = '/invoices/' + result.data.invoiceId + '/review';
-                } else {
-                    showError(result.message || 'Extraction failed. Please try again.');
-                    uploadBtn.disabled = false;
-                }
-
-            } else {
-                // Bulk upload
-                const formData = new FormData();
-                selectedFiles.forEach(f => formData.append('files', f));
-                formData.append('uploadedBy', 'bar_owner');
-
-                const response = await fetch('/api/invoices/upload/bulk', {
-                    method: 'POST',
-                    headers: { [csrfHeader]: csrfToken },
-                    body: formData
-                });
-
-                const result = await response.json();
-
-                if (result.success) {
-                    // Redirect to invoice list — owner reviews each one
-                    window.location.href = '/invoices';
-                } else {
-                    showError(result.message || 'Bulk upload failed.');
-                    uploadBtn.disabled = false;
-                }
-            }
-        } catch (err) {
-            showError('Network error: ' + err.message);
-            uploadBtn.disabled = false;
-        } finally {
-            spinner.style.display = 'none';
+        /* 🔥 IMPORTANT FIX */
+        if (!response.ok) {
+            const text = await response.text();
+            throw new Error("Server error: " + text);
         }
-    }
 
-    function showError(msg) {
-        const el = document.getElementById('errorMsg');
-        document.getElementById('errorText').textContent = msg;
-        el.classList.remove('d-none');
-    }
+        const result = await response.json();
 
-    function hideError() {
-        document.getElementById('errorMsg').classList.add('d-none');
+        if (!result.success) {
+            throw new Error(result.message || "Upload failed");
+        }
+
+        /* Redirect */
+        if (selectedFiles.length === 1) {
+            window.location.href = '/invoices/' + result.data.invoiceId + '/review';
+        } else {
+            window.location.href = '/invoices';
+        }
+
+    } catch (err) {
+        showError(err.message);
+        btn.disabled = false;
+    } finally {
+        spinner.style.display = 'none';
     }
+}
+
+/* Error */
+function showError(msg) {
+    document.getElementById('errorText').textContent = msg;
+    document.getElementById('errorMsg').classList.remove('d-none');
+}
+
+function hideError() {
+    document.getElementById('errorMsg').classList.add('d-none');
+}
 </script>
+
 </body>
 </html>

@@ -48,5 +48,7 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
 	@Query("SELECT i FROM Invoice i WHERE i.uploadedBy = :user ORDER BY i.uploadedAt DESC")
 	List<Invoice> findByUploadedBy(@Param("user") String uploadedBy);
 	
+	  List<Invoice> findByInvoiceDateBetween(LocalDate from, LocalDate to);
+	
 	
 }

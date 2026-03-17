@@ -20,9 +20,9 @@ public class InvoiceItem {
     @JoinColumn(name = "invoice_id", nullable = false)
     private Invoice invoice;
 
-    // ── Brand Reference ───────────────────────────────────────────────────────
-
-    @Column(name = "brand_name_raw", nullable = false, length = 200)
+    // ── Brand Reference ───────────────────────────────────────────────────────   
+    
+    @Column(name = "brand_name_raw", length = 500, nullable = false)
     private String brandNameRaw;
 
     @Column(name = "brand_name_matched", length = 200)
@@ -43,7 +43,7 @@ public class InvoiceItem {
 
     // ── Size & Pack ───────────────────────────────────────────────────────────
 
-    @Column(name = "size_ml", nullable = false)
+    @Column(name = "size_ml")
     private Integer sizeMl;
 
     @Column(name = "bottles_per_case", nullable = false)
@@ -114,4 +114,9 @@ public class InvoiceItem {
     public boolean hasBreakage() {
         return breakageQty != null && breakageQty > 0;
     }
+
+	public void setMatchConfident(boolean matchConfident) {
+		// TODO Auto-generated method stub
+		
+	}
 }

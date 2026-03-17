@@ -4,8 +4,10 @@ import java.util.List;
 
 import org.springframework.stereotype.Service;
 
+import com.barinventory.brands.repository.BrandRepository;
 import com.barinventory.invoice.dto.ExtractedItemData;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -21,7 +23,10 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class BrandMatcherService {
+	
+	private final BrandRepository brandRepository;
 
 	private static final double AUTO_MATCH_THRESHOLD = 0.85;
 
@@ -96,6 +101,24 @@ public class BrandMatcherService {
 			log.warn("No match found for brand: '{}'", item.getBrandNameRaw());
 		}
 	}
+	
+	 
+	public List<BrandMatcherService.BrandMasterRef> getAllBrandRefs() {
+
+	    return brandRepository.findAllActiveWithSizes()
+	            .stream()
+	            .flatMap(brand -> brand.getSizes().stream()
+	                    .filter(size -> size.isActive())
+	                    .map(size -> new BrandMatcherService.BrandMasterRef(
+	                            size.getId(),
+	                            brand.getBrandName(),
+	                            size.getVolumeMl() // or sizeMl based on your entity
+	                    ))
+	            )
+	            .toList();
+	}
+	
+	 
 
 	// ── String Utilities ──────────────────────────────────────────────────────
 
